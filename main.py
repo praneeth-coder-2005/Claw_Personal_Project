@@ -1,45 +1,70 @@
 from pyrogram import Client, filters
-from googleapiclient.discovery import build
+import requests
 
-# Configuration
-BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
-API_ID = 123456  # Replace with your Pyrogram API ID
-API_HASH = "your_api_hash"  # Replace with your Pyrogram API hash
-BLOGGER_API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"
-BLOG_ID = "737863940949257967"
+# Replace these values with your API credentials and bot token
+API_ID = 28293429  # Your API ID
+API_HASH = "903eb1cc5328d00cb92f872d9d66c2c2"  # Your API Hash
+BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"  # Your Bot Token
+BLOG_ID = "737863940949257967"  # Your Blogger Blog ID
+API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"  # Your Blogger API Key
 
-# Initialize Pyrogram Bot
-app = Client("blogger_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
+# Initialize the Pyrogram Client with the provided credentials
+app = Client(
+    "blogger_bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
 
-# Initialize Blogger API
-blogger_service = build("blogger", "v3", developerKey=BLOGGER_API_KEY)
+# Function to post a new blog article
+def post_blog(title, content):
+    url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    payload = {
+        "title": title,
+        "content": content
+    }
 
+    # Send POST request to Blogger API to create a new post
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200:
+        return "Blog post published successfully!"
+    else:
+        return f"Error publishing blog post: {response.status_code}"
+
+# Handle "/start" command
 @app.on_message(filters.command("start"))
-async def start_command(client, message):
-    await message.reply("Welcome to the Blogger Editor Bot! Use /newpost to create a new post.")
+def start(client, message):
+    message.reply_text("Hello! I'm your Blogger bot. Use /help to see available commands.")
 
-@app.on_message(filters.command("newpost"))
-async def new_post(client, message):
-    # Request title and content
-    await message.reply("Send me the title of the blog post:")
-    title_message = await app.listen(message.chat.id)  # Wait for user's reply
-    title = title_message.text
+# Handle "/help" command
+@app.on_message(filters.command("help"))
+def help(client, message):
+    message.reply_text("""
+I can help you with the following commands:
 
-    await message.reply("Now send me the content of the blog post:")
-    content_message = await app.listen(message.chat.id)  # Wait for user's reply
-    content = content_message.text
+- /start: Welcome message
+- /create_post <title> <content>: Create a new blog post with a title and content
+    """)
 
-    # Add post to Blogger
+# Handle "/create_post" command to create a new blog post
+@app.on_message(filters.command("create_post"))
+def create_post(client, message):
+    # Extract the title and content from the message
     try:
-        new_post = {
-            "title": title,
-            "content": content,
-        }
-        result = blogger_service.posts().insert(blogId=BLOG_ID, body=new_post).execute()
-        post_url = result.get("url")
-        await message.reply(f"Post published successfully! View it here: {post_url}")
+        text = message.text.split(maxsplit=2)
+        if len(text) < 3:
+            message.reply_text("Please provide a title and content for the post. Example: /create_post MyTitle MyContent")
+            return
+
+        title = text[1]
+        content = text[2]
+
+        # Call the post_blog function to publish the post
+        result = post_blog(title, content)
+        message.reply_text(result)
     except Exception as e:
-        await message.reply(f"Failed to publish post: {str(e)}")
+        message.reply_text(f"An error occurred: {str(e)}")
 
 # Run the bot
 app.run()
