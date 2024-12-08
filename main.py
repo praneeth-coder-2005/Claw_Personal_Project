@@ -74,6 +74,10 @@ def get_all_blogs():
 async def post_blog(client, message):
     """Handles the /post command to add a new blog post."""
     try:
+        # Log the raw message for debugging
+        logger.info(f"Raw message received: {message.text}")
+
+        # Check if the command has enough arguments
         if len(message.command) < 3:
             await message.reply_text(
                 "Usage: /post <title> <content>\n\nExample: /post My First Blog This is the blog content."
@@ -83,7 +87,7 @@ async def post_blog(client, message):
         # Extract title and content
         title = message.command[1]
         content = " ".join(message.command[2:])
-        logger.info(f"Adding blog post: Title='{title}', Content='{content[:30]}...'")
+        logger.info(f"Extracted Title: '{title}', Extracted Content: '{content[:30]}...'")
 
         # Save the blog post to the database
         add_blog(title, content)
