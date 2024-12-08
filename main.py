@@ -1,142 +1,70 @@
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import telegram
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google.oauth2.service_account import Credentials
-import os
-import sys
+from telegram.ext import Updater, CommandHandler, CallbackContext, Update
 
-# Set up logging for debugging purposes
+# Set up the bot token (replace with your bot token)
+BOT_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
+
+# Set the path to the service account file (service.json)
+SERVICE_ACCOUNT_FILE = 'service.json'
+
+# Set the required scopes for Blogger API
+SCOPES = ['https://www.googleapis.com/auth/blogger']
+
+# Authenticate using the service account file
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+# Build the Blogger API client
+service = build('blogger', 'v3', credentials=credentials)
+
+# Initialize the bot
+bot = telegram.Bot(token=BOT_TOKEN)
+
+# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Your bot token from BotFather
-BOT_TOKEN = "7994627923:AAHngHVsK2VS4eWZ9CJ6hzv-1cwz8x-eisc"
-
-# Blogger API credentials and setup
-SCOPES = ['https://www.googleapis.com/auth/blogger']
-CLIENT_SECRET_PATH = 'client_secret.json'  # path to your OAuth2 client secret JSON
-
-# Set up Blogger API
-def get_blogger_service():
+# Command handler to fetch blogs
+def get_blogs(update: Update, context: CallbackContext) -> None:
     try:
-        if not os.path.exists(CLIENT_SECRET_PATH):
-            raise FileNotFoundError(f"Client secret file not found at {CLIENT_SECRET_PATH}")
-        credentials = Credentials.from_service_account_file(CLIENT_SECRET_PATH, scopes=SCOPES)
-        service = build('blogger', 'v3', credentials=credentials)
-        logger.info("Blogger service successfully created.")
-        return service
-    except Exception as e:
-        logger.error(f"Error creating Blogger service: {e}")
-        sys.exit(1)
+        # Fetch blogs for the authenticated user
+        request = service.blogs().listByUser(userId='self')
+        response = request.execute()
 
-# Fetch blog posts
-def get_blog_posts(blog_id):
-    try:
-        service = get_blogger_service()
-        posts = service.posts().list(blogId=blog_id).execute()
-        if 'items' in posts:
-            logger.info(f"Found {len(posts['items'])} posts.")
-            return posts['items']
+        # Extract blog titles from the response
+        blogs = response.get('items', [])
+        if blogs:
+            blog_titles = [blog['name'] for blog in blogs]
+            message = "Your Blogs:\n" + "\n".join(blog_titles)
         else:
-            logger.warning("No posts found.")
-            return []
+            message = "No blogs found for this account."
+        
+        # Send the list of blogs as a message to the user
+        update.message.reply_text(message)
     except Exception as e:
-        logger.error(f"Error fetching blog posts: {e}")
-        return []
+        logger.error(f"Error while fetching blogs: {e}")
+        update.message.reply_text("An error occurred while fetching blogs.")
 
-# Command handler for /start
-async def start(update: Update, context):
-    try:
-        await update.message.reply_text('Hello! I am your Blogger Telegram Bot. You can edit blog posts using me.')
-    except Exception as e:
-        logger.error(f"Error in /start command: {e}")
-
-# Command handler for viewing blog posts
-async def view_posts(update: Update, context):
-    try:
-        blog_id = "737863940949257967"  # Blog ID provided by you
-        posts = get_blog_posts(blog_id)
-
-        if posts:
-            post_list = "\n".join([f"{post['title']}" for post in posts])
-            await update.message.reply_text(f"Here are your blog posts:\n{post_list}")
-        else:
-            await update.message.reply_text("No blog posts found.")
-    except Exception as e:
-        logger.error(f"Error in /view_posts command: {e}")
-
-# Command handler for editing a post
-async def edit_post(update: Update, context):
-    try:
-        if context.args:
-            post_title = " ".join(context.args)  # Join the arguments to form the post title
-            blog_id = "737863940949257967"  # Blog ID provided by you
-            
-            # Fetch the blog posts
-            posts = get_blog_posts(blog_id)
-            
-            for post in posts:
-                if post['title'].lower() == post_title.lower():
-                    await update.message.reply_text(f"Found post: {post['title']}. Please send the new content.")
-                    # Store post data in context for later
-                    context.user_data['post_to_edit'] = post
-                    return
-            await update.message.reply_text("Post not found. Please check the title and try again.")
-        else:
-            await update.message.reply_text("Please provide the title of the post you want to edit.")
-    except Exception as e:
-        logger.error(f"Error in /edit command: {e}")
-
-# Message handler for receiving new content to update the post
-async def handle_message(update: Update, context):
-    try:
-        if 'post_to_edit' in context.user_data:
-            post = context.user_data['post_to_edit']
-            new_content = update.message.text
-
-            # Update the post with new content
-            service = get_blogger_service()
-            updated_post = service.posts().update(
-                blogId="737863940949257967",  # Blog ID provided by you
-                postId=post['id'],
-                body={'content': new_content}
-            ).execute()
-
-            await update.message.reply_text(f"Post '{post['title']}' updated successfully!")
-            del context.user_data['post_to_edit']  # Clear the post edit context
-        else:
-            await update.message.reply_text("You need to start an edit by using /edit <post_title>.")
-    except Exception as e:
-        logger.error(f"Error in handling message: {e}")
-        await update.message.reply_text("An error occurred while updating the post.")
-
-# Main entry point to start the bot
+# Main function to start the bot
 def main():
-    try:
-        # Create an Application object with your bot's token
-        application = Application.builder().token(BOT_TOKEN).build()
+    # Create the Updater and pass it your bot's token
+    updater = Updater(BOT_TOKEN)
 
-        # Add command handler for /start
-        application.add_handler(CommandHandler("start", start))
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
 
-        # Add command handler for viewing blog posts
-        application.add_handler(CommandHandler("view_posts", view_posts))
+    # Register the /blogs command handler
+    dispatcher.add_handler(CommandHandler('blogs', get_blogs))
 
-        # Add command handler for editing a post
-        application.add_handler(CommandHandler("edit", edit_post))
+    # Start the Bot
+    updater.start_polling()
 
-        # Add message handler for receiving new content for posts
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Run the bot until you send a signal to stop
+    updater.idle()
 
-        # Start polling for updates from Telegram
-        application.run_polling()
-
-    except Exception as e:
-        logger.error(f"Error during bot execution: {e}")
-        sys.exit(1)
-
-# Entry point for running the bot
 if __name__ == '__main__':
     main()
