@@ -2,6 +2,7 @@ from flask import Flask, request
 from pyrogram import Client, filters
 from googleapiclient.discovery import build
 import logging
+import os  # To fetch environment variables
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,16 +11,17 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Environment Variables for Secrets
+BLOGGER_API_KEY = os.getenv("BLOGGER_API_KEY")
+BLOG_ID = os.getenv("BLOG_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+
 # Blogger API setup
-BLOGGER_API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"
-BLOG_ID = "737863940949257967"
 blogger_service = build("blogger", "v3", developerKey=BLOGGER_API_KEY)
 
 # Telegram Bot setup
-BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
-API_ID = 28293429
-API_HASH = "903eb1cc5328d00cb92f872d9d66c2c2"
-
 bot = Client("blogger_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
 
@@ -33,6 +35,9 @@ async def post_to_blogger(client, message):
 
         title = message.command[1]
         content = " ".join(message.command[2:])
+
+        # Log the operation
+        logger.info(f"Attempting to post: Title='{title}', Content='{content[:30]}...'")
 
         # Create the blog post
         post = blogger_service.posts().insert(
@@ -55,7 +60,10 @@ def index():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = request.get_json()
-    bot.process_update(update)
+    try:
+        bot.process_update(update)
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
     return "OK", 200
 
 
