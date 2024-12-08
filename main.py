@@ -4,7 +4,11 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
+import nest_asyncio
 import asyncio
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 # Set up the bot token (replace with your bot token)
 BOT_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
