@@ -1,14 +1,17 @@
-# Use the official Python image
-FROM python:3.8-slim
+# Use Python 3.9 image as the base image
+FROM python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy all files from your local directory into the container
-COPY . /app
+# Copy the requirements.txt file into the container
+COPY requirements.txt .
 
-# Install dependencies
+# Install the required dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run the bot when the container starts
-CMD ["python", "telegram_blogger_bot.py"]
+# Copy the rest of your project files into the container
+COPY . .
+
+# Command to run the bot
+CMD ["python", "main.py"]  # Ensure this matches the actual file name
