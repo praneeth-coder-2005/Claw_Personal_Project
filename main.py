@@ -1,11 +1,9 @@
-from flask import Flask, jsonify, render_template
-from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
-import sqlite3
 import os
 import logging
-import threading
+import sqlite3
 import time
+from pyrogram import Client, filters
+from pyrogram.errors import FloodWait
 
 # Configure logging
 logging.basicConfig(
@@ -15,24 +13,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Flask app
-app = Flask(__name__)
-
-# Environment Variables for Telegram Bot
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
+# Environment Variables for Bot
+BOT_TOKEN = os.getenv("BOT_TOKEN", "<your_bot_token>")
+API_ID = int(os.getenv("API_ID", "<your_api_id>"))
+API_HASH = os.getenv("API_HASH", "<your_api_hash>")
 
 # Initialize Pyrogram Client with persistent session
 bot = Client(
     "custom_blog_bot",  # Session file name
     bot_token=BOT_TOKEN,
     api_id=API_ID,
-    api_hash=API_HASH,
-    workdir="./"  # Ensures session file is saved in the current directory
+    api_hash=API_HASH
 )
 
-# SQLite database file
+# SQLite Database File
 DB_FILE = "blogs.db"
 
 
@@ -74,9 +68,6 @@ def get_all_blogs():
 async def post_blog(client, message):
     """Handles the /post command to add a new blog post."""
     try:
-        # Log the raw message for debugging
-        logger.info(f"Raw message received: {message.text}")
-
         # Check if the command has enough arguments
         if len(message.command) < 3:
             await message.reply_text(
@@ -87,7 +78,7 @@ async def post_blog(client, message):
         # Extract title and content
         title = message.command[1]
         content = " ".join(message.command[2:])
-        logger.info(f"Extracted Title: '{title}', Extracted Content: '{content[:30]}...'")
+        logger.info(f"Adding blog post: Title='{title}', Content='{content[:30]}...'")
 
         # Save the blog post to the database
         add_blog(title, content)
@@ -115,35 +106,8 @@ async def list_blogs(client, message):
         await message.reply_text("An error occurred while listing the blog posts.")
 
 
-@app.route("/")
-def index():
-    """Health check endpoint."""
-    logger.info("Health check endpoint accessed.")
-    return "Custom Blog Bot is running!"
-
-
-@app.route("/blogs", methods=["GET"])
-def api_get_blogs():
-    """API endpoint to retrieve all blogs."""
-    blogs = get_all_blogs()
-    return jsonify([{"id": blog[0], "title": blog[1], "content": blog[2]} for blog in blogs])
-
-
-@app.route("/render", methods=["GET"])
-def render_blogs():
-    """Render all blogs in an HTML template."""
-    blogs = get_all_blogs()
-    return render_template("blogs.html", blogs=blogs)
-
-
-def run_flask():
-    """Start the Flask app."""
-    logger.info("Starting Flask app...")
-    app.run(host="0.0.0.0", port=8080)
-
-
-def run_bot():
-    """Start the Pyrogram bot with flood wait handling."""
+def main():
+    """Run the bot with flood wait handling."""
     while True:
         try:
             logger.info("Starting the Pyrogram bot...")
@@ -152,43 +116,9 @@ def run_bot():
             logger.warning(f"Flood wait error: Waiting for {e.value} seconds before retrying...")
             time.sleep(e.value)  # Wait for the required time before retrying
         except Exception as e:
-            logger.error(f"Failed to start the bot: {e}", exc_info=True)
-            break  # Exit if an unknown error occurs
-
-
-# HTML Template for Blogs
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog Posts</title>
-</head>
-<body>
-    <h1>Blog Posts</h1>
-    <ul>
-        {% for blog in blogs %}
-        <li>
-            <h2>{{ blog[1] }}</h2>
-            <p>{{ blog[2] }}</p>
-        </li>
-        {% endfor %}
-    </ul>
-</body>
-</html>
-"""
-
-# Save the HTML template
-os.makedirs("templates", exist_ok=True)
-with open("templates/blogs.html", "w") as f:
-    f.write(HTML_TEMPLATE)
+            logger.error(f"Bot crashed: {e}", exc_info=True)
+            break
 
 
 if __name__ == "__main__":
-    # Use threading to run Flask and the bot concurrently
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-
-    # Run the bot (this blocks the main thread)
-    run_bot()
+    main()
