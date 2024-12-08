@@ -1,59 +1,45 @@
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from pyrogram import Client, filters
 from googleapiclient.discovery import build
 
-# Replace with your actual credentials
-API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"
-TELEGRAM_BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+# Configuration
+BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+API_ID = 123456  # Replace with your Pyrogram API ID
+API_HASH = "your_api_hash"  # Replace with your Pyrogram API hash
+BLOGGER_API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"
 BLOG_ID = "737863940949257967"
 
-# Initialize the Blogger API service
-blogger_service = build('blogger', 'v3', developerKey=API_KEY)
+# Initialize Pyrogram Bot
+app = Client("blogger_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
-# Start command handler
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(
-        "Welcome to the Blogger Editor Bot!\n"
-        "To create a post, use the command:\n"
-        "/post <title> <content>"
-    )
+# Initialize Blogger API
+blogger_service = build("blogger", "v3", developerKey=BLOGGER_API_KEY)
 
-# Create a post handler
-def post(update: Update, context: CallbackContext) -> None:
-    args = context.args
-    if len(args) < 2:
-        update.message.reply_text("Usage: /post <title> <content>")
-        return
+@app.on_message(filters.command("start"))
+async def start_command(client, message):
+    await message.reply("Welcome to the Blogger Editor Bot! Use /newpost to create a new post.")
 
-    # Extract title and content
-    title = args[0]
-    content = " ".join(args[1:])
+@app.on_message(filters.command("newpost"))
+async def new_post(client, message):
+    # Request title and content
+    await message.reply("Send me the title of the blog post:")
+    title_message = await app.listen(message.chat.id)  # Wait for user's reply
+    title = title_message.text
 
+    await message.reply("Now send me the content of the blog post:")
+    content_message = await app.listen(message.chat.id)  # Wait for user's reply
+    content = content_message.text
+
+    # Add post to Blogger
     try:
-        # Create and publish a blog post
-        post_body = {
+        new_post = {
             "title": title,
-            "content": content
+            "content": content,
         }
-        post = blogger_service.posts().insert(blogId=BLOG_ID, body=post_body, isDraft=False).execute()
-
-        # Send the post URL to the user
-        update.message.reply_text(f"Post published successfully! View it here: {post['url']}")
+        result = blogger_service.posts().insert(blogId=BLOG_ID, body=new_post).execute()
+        post_url = result.get("url")
+        await message.reply(f"Post published successfully! View it here: {post_url}")
     except Exception as e:
-        update.message.reply_text(f"An error occurred: {e}")
+        await message.reply(f"Failed to publish post: {str(e)}")
 
-# Main function
-def main():
-    # Create the Updater and pass it the bot token
-    updater = Updater(TELEGRAM_BOT_TOKEN)
-
-    # Register the command handlers
-    updater.dispatcher.add_handler(CommandHandler("start", start))
-    updater.dispatcher.add_handler(CommandHandler("post", post))
-
-    # Start the bot
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == "__main__":
-    main()
+# Run the bot
+app.run()
