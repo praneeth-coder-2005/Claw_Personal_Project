@@ -112,11 +112,12 @@ async def handle_message(update: Update, context):
         logger.error(f"Error in handling message: {e}")
         await update.message.reply_text("An error occurred while updating the post.")
 
-async def main():
+# Main entry point to start the bot
+def main():
     try:
         # Create an Application object with your bot's token
         application = Application.builder().token(BOT_TOKEN).build()
-        
+
         # Add command handler for /start
         application.add_handler(CommandHandler("start", start))
 
@@ -129,20 +130,13 @@ async def main():
         # Add message handler for receiving new content for posts
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-        # Start polling for updates from Telegram (without using asyncio.run)
-        await application.initialize()
-        await application.run_polling()
-    
+        # Start polling for updates from Telegram
+        application.run_polling()
+
     except Exception as e:
         logger.error(f"Error during bot execution: {e}")
         sys.exit(1)
 
 # Entry point for running the bot
 if __name__ == '__main__':
-    import asyncio
-    # Check if the event loop is already running (which is the case in Koyeb)
-    if not asyncio.get_event_loop().is_running():
-        asyncio.run(main())
-    else:
-        logger.warning("Event loop already running, using Application's native method to start polling.")
-        asyncio.ensure_future(main())
+    main()
