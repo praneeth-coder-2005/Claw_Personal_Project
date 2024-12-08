@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
 import os
@@ -30,22 +30,22 @@ def get_blog_posts(blog_id):
     return posts['items'] if 'items' in posts else []
 
 # Command handler for /start
-def start(update: Update, context):
-    update.message.reply_text('Hello! I am your Blogger Telegram Bot. You can edit blog posts using me.')
+async def start(update: Update, context):
+    await update.message.reply_text('Hello! I am your Blogger Telegram Bot. You can edit blog posts using me.')
 
 # Command handler for viewing blog posts
-def view_posts(update: Update, context):
+async def view_posts(update: Update, context):
     blog_id = "737863940949257967"  # Blog ID provided by you
     posts = get_blog_posts(blog_id)
     
     if posts:
         post_list = "\n".join([f"{post['title']}" for post in posts])
-        update.message.reply_text(f"Here are your blog posts:\n{post_list}")
+        await update.message.reply_text(f"Here are your blog posts:\n{post_list}")
     else:
-        update.message.reply_text("No blog posts found.")
+        await update.message.reply_text("No blog posts found.")
 
 # Command handler for editing a post
-def edit_post(update: Update, context):
+async def edit_post(update: Update, context):
     if context.args:
         post_title = " ".join(context.args)  # Join the arguments to form the post title
         blog_id = "737863940949257967"  # Blog ID provided by you
@@ -55,16 +55,16 @@ def edit_post(update: Update, context):
         
         for post in posts:
             if post['title'].lower() == post_title.lower():
-                update.message.reply_text(f"Found post: {post['title']}. Please send the new content.")
+                await update.message.reply_text(f"Found post: {post['title']}. Please send the new content.")
                 # Store post data in context for later
                 context.user_data['post_to_edit'] = post
                 return
-        update.message.reply_text("Post not found. Please check the title and try again.")
+        await update.message.reply_text("Post not found. Please check the title and try again.")
     else:
-        update.message.reply_text("Please provide the title of the post you want to edit.")
+        await update.message.reply_text("Please provide the title of the post you want to edit.")
 
 # Message handler for receiving new content to update the post
-def handle_message(update: Update, context):
+async def handle_message(update: Update, context):
     if 'post_to_edit' in context.user_data:
         post = context.user_data['post_to_edit']
         new_content = update.message.text
@@ -77,35 +77,30 @@ def handle_message(update: Update, context):
             body={'content': new_content}
         ).execute()
 
-        update.message.reply_text(f"Post '{post['title']}' updated successfully!")
+        await update.message.reply_text(f"Post '{post['title']}' updated successfully!")
         del context.user_data['post_to_edit']  # Clear the post edit context
     else:
-        update.message.reply_text("You need to start an edit by using /edit <post_title>.")
+        await update.message.reply_text("You need to start an edit by using /edit <post_title>.")
 
-def main():
-    # Create an Updater object with your bot's token
-    updater = Updater(BOT_TOKEN, use_context=True)
+async def main():
+    # Create an Application object with your bot's token
+    application = Application.builder().token(BOT_TOKEN).build()
     
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
-
     # Add command handler for /start
-    dp.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("start", start))
 
     # Add command handler for viewing blog posts
-    dp.add_handler(CommandHandler("view_posts", view_posts))
+    application.add_handler(CommandHandler("view_posts", view_posts))
 
     # Add command handler for editing a post
-    dp.add_handler(CommandHandler("edit", edit_post))
+    application.add_handler(CommandHandler("edit", edit_post))
 
     # Add message handler for receiving new content for posts
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start polling for updates from Telegram
-    updater.start_polling()
-
-    # Run the bot until you send a signal to stop
-    updater.idle()
+    await application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
