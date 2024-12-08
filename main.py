@@ -59,7 +59,7 @@ async def main() -> None:
         # Register the /blogs command handler
         application.add_handler(CommandHandler('blogs', get_blogs))
 
-        # Start the Bot
+        # Start the Bot with polling
         logger.info("Bot started successfully, running polling...")
         await application.run_polling()
 
@@ -74,6 +74,9 @@ if __name__ == '__main__':
         # Check if an event loop is already running, and if so, use it
         loop = asyncio.get_event_loop()
         loop.create_task(main())  # Create and run the main function as a task
+
+        # Use asyncio's idle method to keep the bot running
+        loop.run_forever()  # Keep the bot running indefinitely
 
     except Exception as e:
         logger.error(f"Fatal error during bot execution: {e}")
