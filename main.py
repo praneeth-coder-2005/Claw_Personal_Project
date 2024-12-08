@@ -1,37 +1,36 @@
-import logging
 import os
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-from google_auth_oauthlib.flow import InstalledAppFlow
+import logging
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
-from google.auth.credentials import Credentials
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+import telegram
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-# Set up logging
+# Your API key and bot token
+API_KEY = 'AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o'  # You can remove this if not using public API
+BOT_TOKEN = '7994627923:AAHngHVsK2VS4eWZ9CJ6hzv-1cwz8x-eisc'
+BLOG_ID = '737863940949257967'  # Replace with your actual Blog ID
+
+# Define the scope for Blogger API
+SCOPES = ['https://www.googleapis.com/auth/blogger']
+
+# Telegram bot setup
+updater = Updater(token=BOT_TOKEN, use_context=True)
+dispatcher = updater.dispatcher
+
+# Setting up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global variables for Blogger API
-BLOGGER_API_KEY = 'AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o'
-BLOGGER_API_NAME = 'blogger'
-BLOGGER_API_VERSION = 'v3'
-BLOGGER_BLOG_ID = 'your_blog_id'  # Replace with your Blogger blog ID
-
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = '7994627923:AAHngHVsK2VS4eWZ9CJ6hzv-1cwz8x-eisc'
-
-# Set up authentication for Blogger API
-SCOPES = ['https://www.googleapis.com/auth/blogger']
-
+# Function to authenticate the user using OAuth 2.0
 def authenticate_blogger():
-    """Authenticate and return the Blogger API service."""
     creds = None
-    # The file token.json stores the user's access and refresh tokens, and is created
-    # automatically when the authorization flow completes for the first time.
+    # The token.json stores the user's access and refresh tokens
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -42,63 +41,50 @@ def authenticate_blogger():
         # Save the credentials for the next run
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
-    
-    service = build(BLOGGER_API_NAME, BLOGGER_API_VERSION, credentials=creds)
+
+    service = build('blogger', 'v3', credentials=creds)
     return service
 
-def start(update: Update, context: CallbackContext):
-    """Handle /start command."""
-    update.message.reply_text("Welcome! Use /newpost to create a new post.")
-
-def new_post(update: Update, context: CallbackContext):
-    """Handle /newpost command."""
-    update.message.reply_text("Please send me the title of your new blog post.")
-
-    # Wait for the title input
-    return 'WAIT_FOR_TITLE'
-
-def handle_message(update: Update, context: CallbackContext):
-    """Handle messages from users."""
-    user_message = update.message.text
-    
-    if 'WAIT_FOR_TITLE' in context.user_data:
-        # Store the title of the post
-        context.user_data['title'] = user_message
-        update.message.reply_text("Now send me the content of your blog post.")
-        context.user_data['state'] = 'WAIT_FOR_CONTENT'
-    elif 'WAIT_FOR_CONTENT' in context.user_data:
-        # Store the content of the post
-        context.user_data['content'] = user_message
-        # Create the post on Blogger
-        create_blogger_post(context.user_data['title'], context.user_data['content'])
-        update.message.reply_text("Your post has been published on Blogger!")
-        del context.user_data  # Clear user data after post
-
+# Function to create a new blog post
 def create_blogger_post(title, content):
-    """Create a new post on Blogger."""
-    service = authenticate_blogger()
-    posts = service.posts()
-    new_post = {
-        'title': title,
-        'content': content,
-    }
-    posts.insert(blogId=BLOGGER_BLOG_ID, body=new_post).execute()
+    try:
+        service = authenticate_blogger()
+        posts = service.posts()
+        new_post = {
+            'title': title,
+            'content': content,
+        }
+        # Insert new post
+        post = posts.insert(blogId=BLOG_ID, body=new_post).execute()
+        return f"Post created successfully! Title: {post['title']}"
+    except Exception as e:
+        return f"An error occurred: {e}"
 
-def main():
-    """Start the Telegram bot."""
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+# Function to handle /start command
+def start(update, context):
+    update.message.reply_text("Welcome to Blogger Bot! Use /createpost to create a blog post.")
 
-    # Set up command handlers
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("newpost", new_post))
+# Function to handle /createpost command
+def create_post(update, context):
+    try:
+        title = ' '.join(context.args[:1])  # Get the title of the post
+        content = ' '.join(context.args[1:])  # Get the content of the post
 
-    # Set up message handler
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+        if not title or not content:
+            update.message.reply_text("Please provide both title and content for the post.")
+            return
 
-    # Start the bot
-    updater.start_polling()
-    updater.idle()
+        result = create_blogger_post(title, content)
+        update.message.reply_text(result)
+    except Exception as e:
+        update.message.reply_text(f"Error: {e}")
 
-if __name__ == '__main__':
-    main()
+# Adding handlers to the dispatcher
+start_handler = CommandHandler('start', start)
+create_post_handler = CommandHandler('createpost', create_post)
+
+dispatcher.add_handler(start_handler)
+dispatcher.add_handler(create_post_handler)
+
+# Start the bot
+updater.start_polling()
