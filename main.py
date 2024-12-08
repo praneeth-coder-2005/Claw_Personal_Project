@@ -1,91 +1,64 @@
+from flask import Flask, request
 from pyrogram import Client, filters
-import requests
-from flask import Flask
+from googleapiclient.discovery import build
+import logging
 
-# Replace these values with your API credentials and bot token
-API_ID = 28293429  # Your API ID
-API_HASH = "903eb1cc5328d00cb92f872d9d66c2c2"  # Your API Hash
-BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"  # Your Bot Token
-BLOG_ID = "737863940949257967"  # Your Blogger Blog ID
-API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"  # Your Blogger API Key
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Initialize the Pyrogram Client with the provided credentials
-app = Client(
-    "blogger_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+# Initialize Flask app
+app = Flask(__name__)
 
-# Initialize Flask app for health check
-flask_app = Flask(__name__)
+# Blogger API setup
+BLOGGER_API_KEY = "AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o"
+BLOG_ID = "737863940949257967"
+blogger_service = build("blogger", "v3", developerKey=BLOGGER_API_KEY)
 
-# Health check endpoint
-@flask_app.route('/ping')
-def ping():
-    return "OK", 200
+# Telegram Bot setup
+BOT_TOKEN = "7994627923:AAHngHVsK2VS4eWZ9CJ6hzv-1cwz8x-eisc"
+API_ID = 28293429
+API_HASH = "903eb1cc5328d00cb92f872d9d66c2c2"
 
-# Function to post a new blog article
-def post_blog(title, content):
-    url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
-    headers = {"Authorization": f"Bearer {API_KEY}"}
-    payload = {
-        "title": title,
-        "content": content
-    }
+bot = Client("blogger_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
-    # Send POST request to Blogger API to create a new post
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code == 200:
-        return "Blog post published successfully!"
-    else:
-        return f"Error publishing blog post: {response.status_code}"
 
-# Handle "/start" command
-@app.on_message(filters.command("start"))
-def start(client, message):
-    message.reply_text("Hello! I'm your Blogger bot. Use /help to see available commands.")
-
-# Handle "/help" command
-@app.on_message(filters.command("help"))
-def help(client, message):
-    message.reply_text("""
-I can help you with the following commands:
-
-- /start: Welcome message
-- /create_post <title> <content>: Create a new blog post with a title and content
-    """)
-
-# Handle "/create_post" command to create a new blog post
-@app.on_message(filters.command("create_post"))
-def create_post(client, message):
-    # Extract the title and content from the message
+@bot.on_message(filters.command("post") & filters.private)
+async def post_to_blogger(client, message):
     try:
-        text = message.text.split(maxsplit=2)
-        if len(text) < 3:
-            message.reply_text("Please provide a title and content for the post. Example: /create_post MyTitle MyContent")
+        # Extract title and content
+        if len(message.command) < 3:
+            await message.reply_text("Usage: /post <title> <content>")
             return
 
-        title = text[1]
-        content = text[2]
+        title = message.command[1]
+        content = " ".join(message.command[2:])
 
-        # Call the post_blog function to publish the post
-        result = post_blog(title, content)
-        message.reply_text(result)
+        # Create the blog post
+        post = blogger_service.posts().insert(
+            blogId=BLOG_ID,
+            body={"title": title, "content": content}
+        ).execute()
+
+        post_url = post.get("url")
+        await message.reply_text(f"Post published successfully! [View Post]({post_url})", disable_web_page_preview=True)
     except Exception as e:
-        message.reply_text(f"An error occurred: {str(e)}")
+        logger.error(f"Error posting to Blogger: {e}")
+        await message.reply_text("Failed to publish the post. Please check logs.")
 
-# Run both Pyrogram and Flask
+
+@app.route("/")
+def index():
+    return "Blogger Bot is running!"
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    update = request.get_json()
+    bot.process_update(update)
+    return "OK", 200
+
+
 if __name__ == "__main__":
-    from threading import Thread
-
-    # Start Flask server for health checks
-    def start_flask():
-        flask_app.run(host='0.0.0.0', port=8000)
-
-    # Run Flask in a separate thread
-    thread = Thread(target=start_flask)
-    thread.start()
-
-    # Run the Pyrogram bot
-    app.run()
+    # Start the Flask app
+    app.run(host="0.0.0.0", port=8080)
