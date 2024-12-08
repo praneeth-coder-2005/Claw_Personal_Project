@@ -70,13 +70,9 @@ async def main() -> None:
 if __name__ == '__main__':
     try:
         logger.info("Initializing bot application...")
-
-        # Check if an event loop is already running, and if so, use it
-        loop = asyncio.get_event_loop()
-        loop.create_task(main())  # Create and run the main function as a task
-
-        # Use asyncio's idle method to keep the bot running
-        loop.run_forever()  # Keep the bot running indefinitely
+        
+        # Simply run the bot using the `run_polling()` method directly
+        asyncio.run(main())
 
     except Exception as e:
         logger.error(f"Fatal error during bot execution: {e}")
