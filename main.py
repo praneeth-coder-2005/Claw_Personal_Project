@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
+import asyncio
 
 # Set up the bot token (replace with your bot token)
 BOT_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
@@ -69,8 +70,11 @@ async def main() -> None:
 if __name__ == '__main__':
     try:
         logger.info("Initializing bot application...")
-        import asyncio
-        asyncio.run(main())
+
+        # Check if an event loop is already running, and if so, use it
+        loop = asyncio.get_event_loop()
+        loop.create_task(main())  # Create and run the main function as a task
+
     except Exception as e:
         logger.error(f"Fatal error during bot execution: {e}")
         logger.exception("Exception traceback:")
