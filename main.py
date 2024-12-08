@@ -1,9 +1,11 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, render_template
 from pyrogram import Client, filters
+from pyrogram.errors import FloodWait
 import sqlite3
 import os
 import logging
 import threading
+import time
 
 # Configure logging
 logging.basicConfig(
@@ -16,15 +18,23 @@ logger = logging.getLogger(__name__)
 # Flask app
 app = Flask(__name__)
 
-# Telegram Bot setup
+# Environment Variables for Telegram Bot
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 
-bot = Client("custom_blog_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
+# Initialize Pyrogram Client with persistent session
+bot = Client(
+    "custom_blog_bot",  # Session file name
+    bot_token=BOT_TOKEN,
+    api_id=API_ID,
+    api_hash=API_HASH,
+    workdir="./"  # Ensures session file is saved in the current directory
+)
 
-# SQLite setup
+# SQLite database file
 DB_FILE = "blogs.db"
+
 
 def init_db():
     """Initialize the SQLite database."""
@@ -39,8 +49,10 @@ def init_db():
         """)
         conn.commit()
 
+
 # Initialize the database
 init_db()
+
 
 def add_blog(title, content):
     """Add a new blog post to the database."""
@@ -48,6 +60,7 @@ def add_blog(title, content):
         cursor = conn.cursor()
         cursor.execute("INSERT INTO blogs (title, content) VALUES (?, ?)", (title, content))
         conn.commit()
+
 
 def get_all_blogs():
     """Retrieve all blog posts from the database."""
@@ -57,13 +70,14 @@ def get_all_blogs():
         return cursor.fetchall()
 
 
-# Bot Command: Post a blog entry
 @bot.on_message(filters.command("post") & filters.private)
 async def post_blog(client, message):
-    """Handles the /post command to add a new blog."""
+    """Handles the /post command to add a new blog post."""
     try:
         if len(message.command) < 3:
-            await message.reply_text("Usage: /post <title> <content>\n\nExample: /post My First Blog This is the blog content.")
+            await message.reply_text(
+                "Usage: /post <title> <content>\n\nExample: /post My First Blog This is the blog content."
+            )
             return
 
         # Extract title and content
@@ -71,7 +85,7 @@ async def post_blog(client, message):
         content = " ".join(message.command[2:])
         logger.info(f"Adding blog post: Title='{title}', Content='{content[:30]}...'")
 
-        # Save the blog post
+        # Save the blog post to the database
         add_blog(title, content)
         await message.reply_text(f"Blog post added successfully!\n\n**Title**: {title}")
     except Exception as e:
@@ -79,7 +93,6 @@ async def post_blog(client, message):
         await message.reply_text("An error occurred while adding the blog post.")
 
 
-# Bot Command: List all blogs
 @bot.on_message(filters.command("list") & filters.private)
 async def list_blogs(client, message):
     """Handles the /list command to list all blog posts."""
@@ -89,14 +102,22 @@ async def list_blogs(client, message):
             await message.reply_text("No blog posts found.")
             return
 
-        blog_list = "\n\n".join([f"{blog[0]}. **{blog[1]}**\n{blog[2][:50]}..." for blog in blogs])
+        blog_list = "\n\n".join(
+            [f"{blog[0]}. **{blog[1]}**\n{blog[2][:50]}..." for blog in blogs]
+        )
         await message.reply_text(f"Blog Posts:\n\n{blog_list}")
     except Exception as e:
         logger.error(f"Error in list_blogs: {e}", exc_info=True)
         await message.reply_text("An error occurred while listing the blog posts.")
 
 
-# Flask Endpoint: Get all blogs (API)
+@app.route("/")
+def index():
+    """Health check endpoint."""
+    logger.info("Health check endpoint accessed.")
+    return "Custom Blog Bot is running!"
+
+
 @app.route("/blogs", methods=["GET"])
 def api_get_blogs():
     """API endpoint to retrieve all blogs."""
@@ -104,34 +125,34 @@ def api_get_blogs():
     return jsonify([{"id": blog[0], "title": blog[1], "content": blog[2]} for blog in blogs])
 
 
-# Flask Endpoint: Render all blogs as HTML
-@app.route("/")
+@app.route("/render", methods=["GET"])
 def render_blogs():
     """Render all blogs in an HTML template."""
     blogs = get_all_blogs()
     return render_template("blogs.html", blogs=blogs)
 
 
-# Start the Flask app in a separate thread
 def run_flask():
+    """Start the Flask app."""
     logger.info("Starting Flask app...")
     app.run(host="0.0.0.0", port=8080)
 
 
-# Start the bot in its own thread
 def run_bot():
-    try:
-        logger.info("Starting the Pyrogram bot...")
-        bot.start()
-        logger.info("Bot has started successfully. Listening for commands...")
+    """Start the Pyrogram bot with flood wait handling."""
+    while True:
+        try:
+            logger.info("Starting the Pyrogram bot...")
+            bot.run()  # Keeps the bot running indefinitely
+        except FloodWait as e:
+            logger.warning(f"Flood wait error: Waiting for {e.value} seconds before retrying...")
+            time.sleep(e.value)  # Wait for the required time before retrying
+        except Exception as e:
+            logger.error(f"Failed to start the bot: {e}", exc_info=True)
+            break  # Exit if an unknown error occurs
 
-        # Keep the bot running
-        bot.idle()
-    except Exception as e:
-        logger.error(f"Failed to start the bot: {e}")
 
-
-# HTML Template for blogs
+# HTML Template for Blogs
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
