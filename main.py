@@ -129,13 +129,20 @@ async def main():
         # Add message handler for receiving new content for posts
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-        # Start polling for updates from Telegram
+        # Start polling for updates from Telegram (without using asyncio.run)
+        await application.initialize()
         await application.run_polling()
     
     except Exception as e:
         logger.error(f"Error during bot execution: {e}")
         sys.exit(1)
 
+# Entry point for running the bot
 if __name__ == '__main__':
     import asyncio
-    asyncio.run(main())
+    # Check if the event loop is already running (which is the case in Koyeb)
+    if not asyncio.get_event_loop().is_running():
+        asyncio.run(main())
+    else:
+        logger.warning("Event loop already running, using Application's native method to start polling.")
+        asyncio.ensure_future(main())
