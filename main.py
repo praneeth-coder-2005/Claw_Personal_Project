@@ -14,21 +14,18 @@ SERVICE_ACCOUNT_FILE = 'service.json'
 # Set the required scopes for Blogger API
 SCOPES = ['https://www.googleapis.com/auth/blogger']
 
-# Authenticate using the service account file
-credentials = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-
-# Build the Blogger API client
-service = build('blogger', 'v3', credentials=credentials)
-
-# Set up logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+# Set up logging to capture detailed logs
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG  # Change from INFO to DEBUG for more detailed logs
+)
 logger = logging.getLogger(__name__)
 
 # Command handler to fetch blogs
 async def get_blogs(update: Update, context: CallbackContext) -> None:
     try:
+        logger.debug("Fetching blogs...")
+
         # Fetch blogs for the authenticated user
         request = service.blogs().listByUser(userId='self')
         response = request.execute()
@@ -43,21 +40,37 @@ async def get_blogs(update: Update, context: CallbackContext) -> None:
         
         # Send the list of blogs as a message to the user
         await update.message.reply_text(message)
+        logger.debug("Blogs sent to user.")
+
     except Exception as e:
         logger.error(f"Error while fetching blogs: {e}")
         await update.message.reply_text("An error occurred while fetching blogs.")
+        logger.exception("Exception traceback:")
 
 # Main function to start the bot
 async def main() -> None:
-    # Create the Application and pass it your bot's token
-    application = Application.builder().token(BOT_TOKEN).build()
+    try:
+        logger.info("Starting the bot...")
 
-    # Register the /blogs command handler
-    application.add_handler(CommandHandler('blogs', get_blogs))
+        # Create the Application and pass it your bot's token
+        application = Application.builder().token(BOT_TOKEN).build()
 
-    # Start the Bot
-    await application.run_polling()
+        # Register the /blogs command handler
+        application.add_handler(CommandHandler('blogs', get_blogs))
+
+        # Start the Bot
+        logger.info("Bot started successfully, running polling...")
+        await application.run_polling()
+
+    except Exception as e:
+        logger.error(f"An error occurred while starting the bot: {e}")
+        logger.exception("Exception traceback:")
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    try:
+        logger.info("Initializing bot application...")
+        import asyncio
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Fatal error during bot execution: {e}")
+        logger.exception("Exception traceback:")
