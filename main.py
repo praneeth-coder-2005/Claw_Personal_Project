@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 import requests
+from flask import Flask
 
 # Replace these values with your API credentials and bot token
 API_ID = 28293429  # Your API ID
@@ -15,6 +16,14 @@ app = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
 )
+
+# Initialize Flask app for health check
+flask_app = Flask(__name__)
+
+# Health check endpoint
+@flask_app.route('/ping')
+def ping():
+    return "OK", 200
 
 # Function to post a new blog article
 def post_blog(title, content):
@@ -66,5 +75,17 @@ def create_post(client, message):
     except Exception as e:
         message.reply_text(f"An error occurred: {str(e)}")
 
-# Run the bot
-app.run()
+# Run both Pyrogram and Flask
+if __name__ == "__main__":
+    from threading import Thread
+
+    # Start Flask server for health checks
+    def start_flask():
+        flask_app.run(host='0.0.0.0', port=8000)
+
+    # Run Flask in a separate thread
+    thread = Thread(target=start_flask)
+    thread.start()
+
+    # Run the Pyrogram bot
+    app.run()
