@@ -16,7 +16,7 @@ BLOG_ID = "737863940949257967"
 blogger_service = build("blogger", "v3", developerKey=BLOGGER_API_KEY)
 
 # Telegram Bot setup
-BOT_TOKEN = "7994627923:AAHngHVsK2VS4eWZ9CJ6hzv-1cwz8x-eisc"
+BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
 API_ID = 28293429
 API_HASH = "903eb1cc5328d00cb92f872d9d66c2c2"
 
