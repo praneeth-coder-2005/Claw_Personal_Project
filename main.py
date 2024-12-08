@@ -5,7 +5,8 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 
 # Your API key and bot token
 API_KEY = 'AIzaSyDV5u4do3xDEPXStyhn6_-LoZddDYOYP5o'  # You can remove this if not using public API
