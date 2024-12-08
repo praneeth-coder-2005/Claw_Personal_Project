@@ -1,17 +1,20 @@
-# Use Python 3.9 image as the base image
-FROM python:3.9-slim
+# Use an official Python runtime as the base image
+FROM python:3.10-slim
 
-# Set the working directory inside the container
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements.txt file into the container
+# Copy requirements.txt into the container
 COPY requirements.txt .
 
-# Install the required dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your project files into the container
+# Copy the rest of the application code
 COPY . .
 
-# Command to run the bot
+# Expose the port (optional, for debugging purposes)
+EXPOSE 8080
+
+# Define the command to run the application
 CMD ["python", "main.py"]
