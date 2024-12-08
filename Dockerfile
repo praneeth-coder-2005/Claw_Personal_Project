@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your project files into the container
 COPY . .
 
-# Command to run the bot (updated)
-CMD python main.py  # Ensure this matches the actual file name
+# Command to run the bot
+CMD ["python", "main.py"]
