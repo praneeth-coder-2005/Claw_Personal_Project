@@ -84,7 +84,7 @@ async def edit_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         post["content"] = content
 
         # Update the post using the Blogger API
-        blogger.posts().update(blogId=blog_id, postId=post_id, body=post).execute()
+        blogger.posts().update(blogId=blog_id, postId=post_id, body=post).execute()  # Corrected indentation
         await update.message.reply_text(f"Post updated with title: {title}")
 
     except RefreshError as e:
