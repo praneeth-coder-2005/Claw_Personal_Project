@@ -1,6 +1,7 @@
-import logging
 import os
 import json
+import logging
+
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,29 +12,30 @@ from telegram.ext import (
 )
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+from google.auth.exceptions import RefreshError
 
 # Replace with your actual bot token
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4") 
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4")
 
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-
 logger = logging.getLogger(__name__)
 
-# Service account key (replace with your actual key)
+# Service account key (updated with your provided key)
 SERVICE_ACCOUNT_KEY = {
-    "type": "service_account",
-    "project_id": "blogger-test-441717",
-    "private_key_id": "854459011a60e5eb0a89aaaa4c682399979f2317",
-    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCGceDvFyynD3C\nL8QAnsqtFug2KWEc4Y/zEczPUYI8toP/OUMED8dMRoxUmxq+Ha7/Gfp1ZrA27eXL\nUnFoAVq5/b8MbH2WKd/DqKH14m4XQ6TccpQW9kIoH8t6IF6E/PT25B+gWq5Pthes\ntvSA7xlqmN9No4YlHOrLLUq3z79Esp+jBk/UhuI6it7K9ai6zL/rxouJD9EEhk99\nxL4cf/25SnlWfBO2B197l1ZMCHbsz8LewYqnHiEwBqn0zAavkrVfy+eV2LBjb+Qe\nT0tASzbxVUxoTI6AjAj4C2AuzzkZS3LvUgYeaee3CtS4FapyJJcFo9l1+StgoW8P\nDodCaqPNAgMBAAECggEACJior+prNpPZ3lxMM3TU6BaQITny7ZsFy4+ZwQLMoFC7\nBtYr5CWov3WOaH7YD9xzsCOf5owuOLiPiVI06JTKxlr5F51EcJ6ZJOq2hZPKKWib\nCBJhAaVVZ76EvftqBDzJwpd22Ry7BJe9c65EpOMx/nkXxrH70m/17Bqs6Pgf8fRd\ncvDt0NIiOTvLFahte2ZDh5+1vBXp4gFYD1oiA4Cx+gZVLxIEoVdtTVKh5Jv9icuq\n2xW6L80S3UQEhWia4pkvuNDVunbeOTmKD8iP6s9N/Of2mxAYsWQqq/MkpQBD+s5/\n1O5EpysHZeWFnMu7j6pQJlJPJ23bmKp6NEGg00PN5wKBgQDx66kLOjqTlEJurl/1\n7XGSipE90A6SPdh/weseJpiE4tEJXAFJbkO8SjLYovePWNiHzLnjsixCF+1ERsNK\nTFNZviaui4vqkCTPlpCzFUtIoXODntlAkxbe5g8MCi+zQa3bEtAK+A1dS4WfA0k/\nxARY2bl4P2YwqNtUGy3p5FWu2wKBgQDNZahviLTohp4j3gGCqQpN5CnwNG1s0tSd\nFvzUEx++zhFucYgXM/VTTlPvMkVqIfMHJIAb844DwV12T96jf1U0B44nmCkq5Oj6\nCrXYTO/leTU4Zsf0JCdpH3PUxREJpojEDj5eVg/BxZ+f9YG5XQmMN23jSXKm4cAe\ngQ5W0SvUdwKBgQC2dr47P6HqqYopnM+3120vz9+YNZKn7omaYpKJXSbwI3ryijhW\nQBpKq9QJ3XDG54X5dwpFmJ8VAqLsOksVgNfk+iyGva28Lxf0kmV1DPyJPWy4u1i1\nAbvgRrjWpeAwXbtZXqkXfNvnoAyaUIow1BFLSnw/G+JhlRpIJ2/L13JgvQKBgC9h\nef9wm7rgAu7nMZYAhJ3/OiVtEqj94YnzWZNabgJH6wF9MxWXKMp00SvmftjCyBsn\nsl3AS0xWeMboGcXBg9givgooMabxc0Tq35Pr+5MF6N7/5rRM+sJnPQMiCpIdVoNT\nfdOpKq1adz4hFjG6Yo9z4eeCc+5HOVhQEQy559B1AoGAREcHst06oOGOafCNpgj5\njhi8ohNkc/6nxtDqCug8+1JYvIsCJsLVhhKgwWeJ2poXhgM+ie5GqMcazS1haxRv\nxO89uZR7aafL/FqrZDHTu6mIKzb4BbRx7k1h5hjaHCulRneWUO+Ins/yxEaIz8iL\nPU3jN+3nLwCjo78xS3J0f0Y=\n-----END PRIVATE KEY-----\n",
-    "client_email": "blogger-test@blogger-test-441717.iam.gserviceaccount.com",
-    "client_id": "107062288693690040341",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/blogger-test%40blogger-test-441717.iam.gserviceaccount.com"
+  "type": "service_account",
+  "project_id": "blogger-test-441717",
+  "private_key_id": "b5058d9596683941c93d5cafe9237198cd6b8869",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJrA93XyB71z+X\nWTS5HsrOZeZXAPaZqv1ym9MEJgWg8oxjWyU1gC0UkuNWsjWFpTm+C3j9EA5GoIrg\nHk0tzqKNEgQFCKtgV9Gxkk2BVQICMPMTddwI4IQQTtDBVtDwnNoVdanxlc0Em4H/\ncgOycPEtsSsPcwViYNTtV4+db1HAkSRdXaJ0HGS/uUiTR1lxjJc0PIrPsX6+Y99R\n6P7vMpRenr2Q43KZRSIztOZ8txSi377YmErIE9qQEmjcjekkbg/ldjTMR08AwUEA\njQYtRFf9l/waRyX+yALpSd9Vv0ktK+OwwY5Uukk6iMEKmB7DQ+L/KQQYobNO1pDY\nV3762S3XAgMBAAECggEAFLoFxud0b7XiF7x30jTLdCX94+A59/YeYTqJl+oOdwmm\niwmRi+uV9oDYM49SN9+QzSrhruSJCxIx47HJjdUoWKZK2neXIWo1J3JZW9rwP2hn\new8IY7Mrb3+iLdSt2aTNNxpmMmmKbhhLZoUBw0OfTepg+hAAtCkuiQwQOwZ3WPqD\nDAxbl/vk7SyR8DonyWnMQInMbvp3FcGV35SybjHS+c3hwmRuBzanX+l3dz/eAUVB\nRYBBsdbfwMvtW9tAjbuRVz7qQLSuulFlOtOZvRHLuv6pVTWK8gzi4Jik+GtJqm3H\nSOtnnXUShFN6MTicNjNGIMXhaxWfbuP+sJaOati1gQKBgQDsVXBzvUolhpnOoxwL\nYzRFErx2uTl927KBOeXxMeqc9IPqiOjNsQzROysEfb05M2rDkzooFFe+TNjqgbvD\nCwgWa41XzFuQAsfunY1mJT524hGlgSV7msRb7KMJVU836ATKzwy8qQr7NGcrgB9N\nXD3kPScrPduYtfTjLzAjfHXpVwKBgQDadDuRVK+p2czTF7ZkoUKS/zwLxchUfmdE\nUX7mojqjabEuDIOIDc10ZDN6K4vVpyqKxx/fKLNTv0ZCGhvZUxH5mOoA6YlxJw4v\nqIoywMuj7FyJV9u07yqYAznnWYllctvkHqAQyZbxYmUQ3jDt4JdXtni6PaYjjCbZ\nXcZ+sUGPgQKBgB/Yd3mxFQ+vboRQqFPEf2ObXbflx6B0/T26joiMwF9791agMjad\nV+vNvEMzqk7N5eIKsbh63UPBWP5okuN6VhGnVnlxORlTtpspsccE18DvP498so9Q\nUItOfL2iODWBVzv44G9/m9Izwn8zGYS0HEboEqIaCMAwLJp8XlE50S2rAoGAIhKr\nD9nzpDxydCJosn1sktz4kqWAv50PolpLvtFi8AYWOqZ9BYWRnCvc05tjLinqusag\nNAB3KALXhIvp+BW64gF1zjqe02VSEyDonU3w9VpyfIGVpT0AmcE3ENyoT4iAv63/\nLV8kCfZc6Sqe2xuCv42YewQOm9DKZnD3+t7O6QECgYEAw6MxYmlDLx+7XgX19HLy\nivrp2quA+00f1JjIK026BcC5jKxxfPGfpwQpdKd5LYhkAveA4kNhfNh4eOOYKmi3\nthutsRyD5b4AaT+uTiHz4Eq82p7cO0Hq813dfgP7UIh6DKqm502H32hxae1yTT44\nkmtsFS6Wqr5wQey7PxehCUY=\n-----END PRIVATE KEY-----\n",
+  "client_email": "blogger-test@blogger-test-441717.iam.gserviceaccount.com",
+  "client_id": "109126077830572082410",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/blogger-test%40blogger-test-441717.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
 }
 
 SCOPES = ['https://www.googleapis.com/auth/blogger']
@@ -45,7 +47,7 @@ credentials = service_account.Credentials.from_service_account_info(
 blogger = build('blogger', 'v3', credentials=credentials)
 
 # Replace with your actual blog ID
-blog_id = '737863940949257967'
+blog_id = '737863940949257967'  
 
 async def create_draft_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Creates a draft post on the blog."""
@@ -67,12 +69,13 @@ async def create_draft_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         blogger.posts().insert(blogId=blog_id, body=post, isDraft=True).execute()
         await update.message.reply_text(f'Draft post created with title: {title}')
 
+    except RefreshError as e:
+        logger.error(f"Error creating post: {e}")
+        await update.message.reply_text('Invalid JWT Signature. Please check your service account key.')
+
     except Exception as e:
         logger.error(f"Error creating post: {e}")
-        if isinstance(e, InvalidJwtSignatureError):
-            await update.message.reply_text('Invalid JWT Signature. Please check your service account key.')
-        else:
-            await update.message.reply_text('Error creating post.')
+        await update.message.reply_text('Error creating post.')
 
 def main():
     """Starts the bot."""
@@ -86,4 +89,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+        
