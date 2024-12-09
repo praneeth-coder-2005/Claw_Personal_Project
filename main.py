@@ -46,7 +46,7 @@ def get_movie_details(movie_name):
             imdb_rating = data['imdbRating']
             imdb_votes = data['imdbVotes']
             imdb_id = data['imdbID']
-            
+
             # Create a more structured and readable output
             movie_info = f"""
             *Title:* {title} ({year})
@@ -113,6 +113,17 @@ def search_movies(movie_name):
         return []
 
 
+def get_streaming_availability(movie_name):
+    """
+    This is a placeholder function. 
+    You'll need to use an API or web scraping to get actual streaming availability.
+    """
+    # Replace this with your actual implementation
+    # For example, you can use the Watchmode API or web scraping to get this data
+    # This example just returns a dummy response
+    return "This feature is not yet implemented. Streaming availability is not available."
+
+
 # --- Command Handler ---
 
 @bot.message_handler(commands=['start'])
@@ -123,7 +134,8 @@ def send_welcome(message):
         telebot.types.InlineKeyboardButton('Time', callback_data='time'),
         telebot.types.InlineKeyboardButton('Date', callback_data='date'),
         telebot.types.InlineKeyboardButton('Movie Details', callback_data='movie_details'),
-        telebot.types.InlineKeyboardButton('Movie Ratings', callback_data='movie_ratings')
+        telebot.types.InlineKeyboardButton('Movie Ratings', callback_data='movie_ratings'),
+        telebot.types.InlineKeyboardButton('Streaming Availability', callback_data='streaming_availability')
     )
     bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
 
@@ -142,10 +154,13 @@ def callback_query(call):
     elif call.data == "movie_ratings":
         bot.answer_callback_query(call.id, text="Send me a movie title to get ratings")
         bot.register_next_step_handler(call.message, process_movie_rating_request)
+    elif call.data == "streaming_availability":
+        bot.answer_callback_query(call.id, text="Send me a movie title to check streaming availability")
+        bot.register_next_step_handler(call.message, process_streaming_availability)
     else:  # Handle movie selection callbacks
         movie_name = call.data
-        movie_info = get_movie_details(movie_name)
-        bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
+        streaming_info = get_streaming_availability(movie_name)
+        bot.send_message(call.message.chat.id, streaming_info)
 
 def process_movie_request(message):
     """Processes the movie title and sends movie details or shows options."""
@@ -174,8 +189,29 @@ def process_movie_rating_request(message):
     movie_ratings = get_movie_rating(movie_name)
     bot.send_message(message.chat.id, movie_ratings)
 
+def process_streaming_availability(message):
+    """Processes the movie title and sends streaming availability."""
+    movie_name = message.text
+    movies = search_movies(movie_name)
+    if len(movies) == 1:
+        # Only one movie found, send streaming availability directly
+        streaming_info = get_streaming_availability(movies[0]['Title'])
+        bot.send_message(message.chat.id, streaming_info)
+    elif len(movies) > 1:
+        # Multiple movies found, show inline buttons for selection
+        markup = telebot.types.InlineKeyboardMarkup()
+        for movie in movies:
+            title = movie['Title']
+            year = movie['Year']
+            button_text = f"{title} ({year})"
+            callback_data = title  # Use title as callback data
+            markup.add(telebot.types.InlineKeyboardButton(button_text, callback_data=callback_data))
+        bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, "Movie not found.")
+
 # --- Start the Bot ---
 
 if __name__ == '__main__':
     bot.infinity_polling()
-    
+        
