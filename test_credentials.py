@@ -1,15 +1,28 @@
+import logging
 import os
 import json
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler
-from telegram.ext.filters import Filters
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
 # Replace with your actual bot token
-BOT_TOKEN = "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4"  # Updated with your token
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4")
 
-# Service account key (replace with your actual key)
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+
+logger = logging.getLogger(__name__)
+
+# Service account key
 SERVICE_ACCOUNT_KEY = {
     "type": "service_account",
     "project_id": "blogger-test-441717",
@@ -31,15 +44,16 @@ credentials = service_account.Credentials.from_service_account_info(
 # Authenticate with the Blogger API
 blogger = build('blogger', 'v3', credentials=credentials)
 
-# Get the blog ID
-blog_id = '737863940949257967'  
+# Replace with your actual blog ID
+blog_id = '737863940949257967'
 
-def create_draft_post(update: Update, context):
+async def create_draft_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Creates a draft post on the blog."""
     try:
         title = update.message.text.replace('/createdraft ', '')
-        # Create the post body (replace with your desired content)
-        body = "This is a draft post created from my Telegram bot!"  
+
+        # Create the post body
+        body = "This is a draft post created from my Telegram bot!"
 
         # Create the post using the Blogger API
         post = {
@@ -51,23 +65,22 @@ def create_draft_post(update: Update, context):
             'content': body
         }
         blogger.posts().insert(blogId=blog_id, body=post, isDraft=True).execute()
-        update.message.reply_text(f'Draft post created with title: {title}')
+        await update.message.reply_text(f'Draft post created with title: {title}')
 
     except Exception as e:
-        print(f"Error creating post: {e}")
-        update.message.reply_text('Error creating post.')
+        logger.error(f"Error creating post: {e}")
+        await update.message.reply_text('Error creating post.')
 
 def main():
     """Starts the bot."""
-    updater = Updater(BOT_TOKEN)
-    dispatcher = updater.dispatcher
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # Register the command handler
-    dispatcher.add_handler(CommandHandler("createdraft", create_draft_post))
+    application.add_handler(CommandHandler("createdraft", create_draft_post))
 
-    updater.start_polling()
-    updater.idle()
+    # Run the bot
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
-                                            
+        
