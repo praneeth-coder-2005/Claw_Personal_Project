@@ -67,7 +67,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def edit_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Edits an existing post on the blog."""
     try:
-        # ... (rest of your edit_post function)
+        # Parse the command arguments
+        args = context.args
+        if len(args) < 3:
+            await update.message.reply_text(
+                "Please provide the PostId, Title, and Content."
+            )
+            return
+
+        post_id, title, content = args[0], args[1], " ".join(args[2:])
+
+        # Get the existing post
+        post = blogger.posts().get(blogId=blog_id, postId=post_id).execute()
+
+        # Update the title and content
+        post["title"] = title
+        post["content"] = content
+
+        # Update the post using the Blogger API
+        blogger.posts()
+            .update(blogId=blog_id, postId=post_id, body=post)
+            .execute()
+        await update.message.reply_text(f"Post updated with title: {title}")
+
+    except RefreshError as e:
+        logger.error(f"Error editing post: {e}")
+        await update.message.reply_text(
+            "Invalid JWT Signature. Please check your service account key."
+        )
+
     except Exception as e:
         logger.error(f"Error editing post: {e}")
         await update.message.reply_text("Error editing post.")
@@ -85,4 +113,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-                    
+        
