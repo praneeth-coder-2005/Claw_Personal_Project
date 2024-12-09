@@ -36,24 +36,22 @@ CREDENTIALS_FILE = "credentials.json"  # Replace with the actual file name
 def authenticate():
     """Authenticates with the Blogger API and returns the service."""
     creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open("token.pickle", "wb") as token:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                CREDENTIALS_FILE, SCOPES)
+            # Use out-of-band flow
+            flow.run_console()  
+        with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    return build("blogger", "v3", credentials=creds)
+    return build('blogger', 'v3', credentials=creds)
 
 blogger = authenticate()  # Authenticate at the start
 
@@ -84,7 +82,7 @@ async def edit_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         post["content"] = content
 
         # Update the post using the Blogger API
-        blogger.posts().update(blogId=blog_id, postId=post_id, body=post).execute()  # Corrected indentation
+        blogger.posts().update(blogId=blog_id, postId=post_id, body=post).execute()
         await update.message.reply_text(f"Post updated with title: {title}")
 
     except RefreshError as e:
