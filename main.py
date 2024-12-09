@@ -95,6 +95,24 @@ def get_movie_rating(movie_name):
         return "Error fetching movie data."
 
 
+def search_movies(movie_name):
+    """Searches for movies with similar names using OMDb API."""
+    api_key = "a3b61eaa"  # Your OMDb API key
+    base_url = "http://www.omdbapi.com/?"
+    complete_url = f"{base_url}apikey={api_key}&s={movie_name}"
+    response = requests.get(complete_url)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data['Response'] == 'True':
+            movies = data['Search']
+            return movies
+        else:
+            return []  # Return an empty list if no movies are found
+    else:
+        return []
+
+
 # --- Command Handler ---
 
 @bot.message_handler(commands=['start'])
@@ -124,12 +142,31 @@ def callback_query(call):
     elif call.data == "movie_ratings":
         bot.answer_callback_query(call.id, text="Send me a movie title to get ratings")
         bot.register_next_step_handler(call.message, process_movie_rating_request)
+    else:  # Handle movie selection callbacks
+        movie_name = call.data
+        movie_info = get_movie_details(movie_name)
+        bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
 
 def process_movie_request(message):
-    """Processes the movie title and sends movie details."""
+    """Processes the movie title and sends movie details or shows options."""
     movie_name = message.text
-    movie_info = get_movie_details(movie_name)
-    bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
+    movies = search_movies(movie_name)
+    if len(movies) == 1:
+        # Only one movie found, send details directly
+        movie_info = get_movie_details(movies[0]['Title'])
+        bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
+    elif len(movies) > 1:
+        # Multiple movies found, show inline buttons for selection
+        markup = telebot.types.InlineKeyboardMarkup()
+        for movie in movies:
+            title = movie['Title']
+            year = movie['Year']
+            button_text = f"{title} ({year})"
+            callback_data = title  # Use title as callback data
+            markup.add(telebot.types.InlineKeyboardButton(button_text, callback_data=callback_data))
+        bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, "Movie not found.")
 
 def process_movie_rating_request(message):
     """Processes the movie title and sends movie ratings."""
@@ -141,4 +178,4 @@ def process_movie_rating_request(message):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
+    
