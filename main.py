@@ -31,10 +31,41 @@ def get_movie_details(movie_name):
         if data['Response'] == 'True':
             title = data['Title']
             year = data['Year']
+            rated = data['Rated']
+            released = data['Released']
+            runtime = data['Runtime']
+            genre = data['Genre']
+            director = data['Director']
+            writer = data['Writer']
+            actors = data['Actors']
             plot = data['Plot']
+            language = data['Language']
+            country = data['Country']
+            awards = data['Awards']
             poster = data['Poster']
             imdb_rating = data['imdbRating']
-            return f"Title: {title}\nYear: {year}\nPlot: {plot}\nIMDb Rating: {imdb_rating}\nPoster: {poster}"
+            imdb_votes = data['imdbVotes']
+            imdb_id = data['imdbID']
+            
+            # Create a more structured and readable output
+            movie_info = f"""
+            *Title:* {title} ({year})
+            *Rated:* {rated}
+            *Released:* {released}
+            *Runtime:* {runtime}
+            *Genre:* {genre}
+            *Director:* {director}
+            *Writer:* {writer}
+            *Actors:* {actors}
+            *Plot:* {plot}
+            *Language:* {language}
+            *Country:* {country}
+            *Awards:* {awards}
+            *IMDb Rating:* {imdb_rating} ({imdb_votes} votes)
+            *IMDb ID:* {imdb_id}
+            *Poster:* {poster}
+            """
+            return movie_info
         else:
             return "Movie not found."
     else:
@@ -98,7 +129,7 @@ def process_movie_request(message):
     """Processes the movie title and sends movie details."""
     movie_name = message.text
     movie_info = get_movie_details(movie_name)
-    bot.send_message(message.chat.id, movie_info)
+    bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
 
 def process_movie_rating_request(message):
     """Processes the movie title and sends movie ratings."""
