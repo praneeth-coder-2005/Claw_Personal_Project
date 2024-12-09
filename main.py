@@ -4,18 +4,13 @@ import os
 
 # Path to the client credentials JSON file
 CLIENT_CREDENTIALS = "Client_credentials.txt"
-
-# Scopes required for Blogger API
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
 
-def authenticate_with_browser():
-    """Authenticate the user using OAuth 2.0 with browser redirection."""
+def authenticate_with_console():
+    """Authenticate the user using OAuth 2.0 with console fallback."""
     flow = InstalledAppFlow.from_client_secrets_file(CLIENT_CREDENTIALS, SCOPES)
-    print("Redirecting to browser for Google login...")
-    
-    # Open browser, authenticate, and return to the script automatically
-    credentials = flow.run_local_server(port=8080, open_browser=True)
-
+    print("Opening authentication URL in the terminal...")
+    credentials = flow.run_console()  # Works in headless environments
     print("Authentication successful. Access token obtained.")
     return credentials
 
@@ -29,5 +24,5 @@ def list_blogs(credentials):
         print(f"Blog ID: {blog['id']}, Blog Name: {blog['name']}, Blog URL: {blog['url']}")
 
 if __name__ == "__main__":
-    creds = authenticate_with_browser()
+    creds = authenticate_with_console()
     list_blogs(creds)
