@@ -6,11 +6,10 @@ from io import BytesIO
 
 import requests
 import telebot
-from tqdm import tqdm
 
 # --- Configuration ---
 
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk' 
+BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
 OMDB_API_KEY = "a3b61eaa"
 
 # --- Logging ---
@@ -155,21 +154,27 @@ def download_file(url, file_name, message):
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
-        # Create a progress bar
-        progress_bar = tqdm(total=file_size, unit='B', unit_scale=True, desc=file_name, ascii=True)
+        # Create a progress bar (using Unicode characters)
+        progress_bar = ""
+        progress_bar_length = 20  # Adjust the length of the progress bar
+
         with open(file_name, 'wb') as f:
+            downloaded = 0
             for chunk in response.iter_content(chunk_size=1024):
                 if chunk:  # Filter out keep-alive new chunks
                     f.write(chunk)
-                    progress_bar.update(len(chunk))
+                    downloaded += len(chunk)
                     # Update progress in Telegram (every 10%)
-                    if progress_bar.n % (file_size // 10) == 0:
+                    if downloaded % (file_size // 10) == 0:
+                        progress = int(downloaded / file_size * progress_bar_length)
+                        progress_bar = "█" * progress + "░" * (progress_bar_length - progress)
                         try:
                             bot.edit_message_text(
                                 chat_id=message.chat.id,
                                 message_id=user_data[message.chat.id]['progress_message_id'],
                                 text=f"Downloading: {file_name}\n"
-                                     f"Progress: {progress_bar.n / file_size * 100:.1f}%"
+                                     f"Progress: {downloaded / file_size * 100:.1f}%\n"
+                                     f"`{progress_bar}`"  # Use Markdown for the progress bar
                             )
                         except telebot.apihelper.ApiException as e:
                             if 'retry_after' in e.result_json:
@@ -179,12 +184,12 @@ def download_file(url, file_name, message):
                                     chat_id=message.chat.id,
                                     message_id=user_data[message.chat.id]['progress_message_id'],
                                     text=f"Downloading: {file_name}\n"
-                                         f"Progress: {progress_bar.n / file_size * 100:.1f}%"
+                                         f"Progress: {downloaded / file_size * 100:.1f}%\n"
+                                         f"`{progress_bar}`"  # Use Markdown for the progress bar
                                 )
                             else:
                                 raise e  # Re-raise the exception if it's not a FloodWait
 
-        progress_bar.close()
         return file_name
 
     except requests.exceptions.RequestException as e:
@@ -203,15 +208,16 @@ def upload_large_file_to_telegram(file_name, message):
             progress_message = bot.send_message(message.chat.id, "Uploading...")
             user_data[message.chat.id]['progress_message_id'] = progress_message.message_id
 
-            part_size = 50 * 1024 * 1024  # 50MB chunks 
+            part_size = 50 * 1024 * 1024  # 50MB chunks
             parts = range(0, file_size, part_size)
             total_parts = len(parts)
 
-            # Create a progress bar
-            progress_bar = tqdm(total=total_parts, unit='parts', desc=file_name, ascii=True)
-
             # Use a unique file_id (you can generate a random ID if needed)
-            file_id = f"{message.chat.id}_{time.time()}"  
+            file_id = f"{message.chat.id}_{time.time()}"
+
+            # Create a progress bar (using Unicode characters)
+            progress_bar = ""
+            progress_bar_length = 20  # Adjust the length of the progress bar
 
             for i, part in enumerate(parts):
                 file_part = BytesIO(f.read(part_size))
@@ -219,19 +225,19 @@ def upload_large_file_to_telegram(file_name, message):
 
                 # Use the correct method for uploading file parts
                 bot.send_file(
-                    message.chat.id, 
-                    file_part, 
-                    file_id=file_id, 
-                    file_part=i, 
-                    file_total_parts=total_parts, 
-                    caption=f"Uploading: {file_name}\nProgress: {progress_bar.n / total_parts * 100:.1f}%" 
+                    message.chat.id,
+                    file_part,
+                    file_id=file_id,
+                    file_part=i,
+                    file_total_parts=total_parts,
+                    caption=f"Uploading: {file_name}\n"
+                            f"Progress: {i / total_parts * 100:.1f}%\n"
+                            f"`{progress_bar}`"  # Use Markdown for the progress bar
                 )
 
-                progress_bar.update(1)
-
-            progress_bar.close()
-
-            # No need to send the final file separately as it's handled in the loop
+                # Update the progress bar
+                progress = int((i + 1) / total_parts * progress_bar_length)
+                progress_bar = "█" * progress + "░" * (progress_bar_length - progress)
 
     except Exception as e:
         logger.error(f"Error uploading large file to Telegram: {e}")
@@ -482,5 +488,4 @@ def process_file_upload(message, custom_file_name=None):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
         
