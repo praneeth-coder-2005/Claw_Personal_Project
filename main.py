@@ -2,6 +2,9 @@ import telebot
 import datetime
 import requests
 
+logger = telebot.logger
+telebot.logger.setLevel(logging.DEBUG)  # Set logging level to DEBUG for detailed logs
+
 # Bot token (already replaced)
 BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
 
