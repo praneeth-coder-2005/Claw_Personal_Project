@@ -2,3 +2,4 @@ Flask==2.3.2
 Pyrogram==2.0.106
 google-api-python-client==2.98.0
 Tgcrypto 
+pyrogram==2.0.106
