@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 # --- Configuration ---
 
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
+BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk' 
 OMDB_API_KEY = "a3b61eaa"
 
 # --- Logging ---
@@ -198,57 +198,40 @@ def upload_large_file_to_telegram(file_name, message):
     try:
         with open(file_name, 'rb') as f:
             file_size = os.path.getsize(file_name)
+
             # Send initial message with progress bar
             progress_message = bot.send_message(message.chat.id, "Uploading...")
             user_data[message.chat.id]['progress_message_id'] = progress_message.message_id
 
-            part_size = 50 * 1024 * 1024  # 50MB chunks
+            part_size = 50 * 1024 * 1024  # 50MB chunks 
             parts = range(0, file_size, part_size)
             total_parts = len(parts)
 
             # Create a progress bar
             progress_bar = tqdm(total=total_parts, unit='parts', desc=file_name, ascii=True)
 
+            # Use a unique file_id (you can generate a random ID if needed)
+            file_id = f"{message.chat.id}_{time.time()}"  
+
             for i, part in enumerate(parts):
                 file_part = BytesIO(f.read(part_size))
                 bot.send_chat_action(message.chat.id, 'upload_document')
-                uploaded_part = bot.upload.saveBigFilePart(
-                    file_id=message.chat.id,  # Use chat ID as a unique identifier
-                    file_part=i,
-                    file_total_parts=total_parts,
-                    bytes=file_part
+
+                # Use the correct method for uploading file parts
+                bot.send_file(
+                    message.chat.id, 
+                    file_part, 
+                    file_id=file_id, 
+                    file_part=i, 
+                    file_total_parts=total_parts, 
+                    caption=f"Uploading: {file_name}\nProgress: {progress_bar.n / total_parts * 100:.1f}%" 
                 )
-                # Update progress bar and Telegram message
+
                 progress_bar.update(1)
-                if progress_bar.n % (total_parts // 10) == 0:
-                    try:
-                        bot.edit_message_text(
-                            chat_id=message.chat.id,
-                            message_id=user_data[message.chat.id]['progress_message_id'],
-                            text=f"Uploading: {file_name}\n"
-                                 f"Progress: {progress_bar.n / total_parts * 100:.1f}%"
-                        )
-                    except telebot.apihelper.ApiException as e:
-                        if 'retry_after' in e.result_json:
-                            time.sleep(e.result_json['retry_after'])
-                            # Retry the update
-                            bot.edit_message_text(
-                                chat_id=message.chat.id,
-                                message_id=user_data[message.chat.id]['progress_message_id'],
-                                text=f"Uploading: {file_name}\n"
-                                     f"Progress: {progress_bar.n / total_parts * 100:.1f}%"
-                            )
-                        else:
-                            raise e  # Re-raise the exception if it's not a FloodWait
 
             progress_bar.close()
 
-            # Send the final file
-            bot.send_document(
-                chat_id=message.chat.id,
-                document=message.chat.id,  # Use chat ID as file_id
-                caption=f"Uploaded {file_name} ({file_size_str(file_size)})"
-            )
+            # No need to send the final file separately as it's handled in the loop
 
     except Exception as e:
         logger.error(f"Error uploading large file to Telegram: {e}")
@@ -499,5 +482,5 @@ def process_file_upload(message, custom_file_name=None):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-                             
-    
+        
+        
