@@ -3,128 +3,121 @@ import datetime
 import requests
 import logging
 
-# Bot token (already replaced)
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk' 
+# --- Configuration ---
+
+BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
+OMDB_API_KEY = "a3b61eaa"
+WATCHMODE_API_KEY = "5LJbT9QuNsWaL7CVKZEYJ9KGpmwiqHEhEFuxU1Ax"
+
+# --- Logging ---
+
+logger = telebot.logger
+telebot.logger.setLevel(logging.DEBUG)  # Set logging level to DEBUG for detailed logs
+
+# --- Bot Initialization ---
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
-# Enable logging for debugging
-logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG) 
 
 # --- Helper Functions ---
 
 def get_current_time():
     """Returns the current time as a formatted string."""
-    now = datetime.datetime.now()
-    return now.strftime("%H:%M:%S")
+    return datetime.datetime.now().strftime("%H:%M:%S")
+
 
 def get_current_date():
     """Returns the current date as a formatted string."""
-    now = datetime.datetime.now()
-    return now.strftime("%Y-%m-%d")
+    return datetime.datetime.now().strftime("%Y-%m-%d")
+
 
 def get_movie_details(movie_name):
     """Fetches movie details from OMDb API."""
-    api_key = "a3b61eaa"  # Your OMDb API key
     base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={api_key}&t={movie_name}"
-    response = requests.get(complete_url)
-
-    if response.status_code == 200:
+    complete_url = f"{base_url}apikey={OMDB_API_KEY}&t={movie_name}"
+    
+    try:
+        response = requests.get(complete_url)
+        response.raise_for_status()
         data = response.json()
+
         if data['Response'] == 'True':
-            # ... (extract movie details as before) ...
+            # Extract and format movie details (use Markdown for better readability)
+            title = data['Title']
+            year = data['Year']
+            # ... (extract other details) ...
+            movie_info = f"""
+            *Title:* {title} ({year})
+            *Rated:* {rated}
+            *Released:* {released}
+            *Runtime:* {runtime}
+            *Genre:* {genre}
+            *Director:* {director}
+            *Writer:* {writer}
+            *Actors:* {actors}
+            *Plot:* {plot}
+            *Language:* {language}
+            *Country:* {country}
+            *Awards:* {awards}
+            *IMDb Rating:* {imdb_rating} ({imdb_votes} votes)
+            *IMDb ID:* {imdb_id}
+            *Poster:* {poster}
+            """
             return movie_info
         else:
             return "Movie not found."
-    else:
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching movie details: {e}")
         return "Error fetching movie data."
 
 
 def get_movie_rating(movie_name):
     """Fetches movie ratings from OMDb API."""
-    api_key = "a3b61eaa"  # Your OMDb API key
-    base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={api_key}&t={movie_name}"
-    response = requests.get(complete_url)
-
-    if response.status_code == 200:
-        data = response.json()
-        if data['Response'] == 'True':
-            ratings = data['Ratings']
-            rating_str = ""
-            for rating in ratings:
-                source = rating['Source']
-                value = rating['Value']
-                rating_str += f"{source}: {value}\n"
-            return rating_str
-        else:
-            return "Movie not found."
-    else:
-        return "Error fetching movie data."
+    # ... (similar structure as get_movie_details) ...
 
 
 def search_movies(movie_name):
     """Searches for movies with similar names using OMDb API."""
-    api_key = "a3b61eaa"  # Your OMDb API key
-    base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={api_key}&s={movie_name}"
-    response = requests.get(complete_url)
-
-    if response.status_code == 200:
-        data = response.json()
-        if data['Response'] == 'True':
-            movies = data['Search']
-            return movies
-        else:
-            return []  # Return an empty list if no movies are found
-    else:
-        return []
+    # ... (similar structure as get_movie_details) ...
 
 
 def get_streaming_availability(movie_name):
     """Fetches streaming availability from Watchmode API."""
-    api_key = "5LJbT9QuNsWaL7CVKZEYJ9KGpmwiqHEhEFuxU1Ax"  # Your Watchmode API key
     base_url = "https://api.watchmode.com/v1/title/"
     
     try:
         # First, get the movie ID using the search API
-        search_url = f"https://api.watchmode.com/v1/search/?apiKey={api_key}&search_field=name&search_value={movie_name}"
+        search_url = f"https://api.watchmode.com/v1/search/?apiKey={WATCHMODE_API_KEY}&search_field=name&search_value={movie_name}"
         search_response = requests.get(search_url)
-        search_response.raise_for_status()  # Raise an exception for bad status codes
+        search_response.raise_for_status()
         search_data = search_response.json()
 
         if search_data['title_results']:
-            movie_id = search_data['title_results'][0]['id']  # Get the first result's ID
+            movie_id = search_data['title_results'][0]['id']
 
             # Now, use the movie ID to get streaming details
-            details_url = f"{base_url}{movie_id}/sources/?apiKey={api_key}"
+            details_url = f"{base_url}{movie_id}/sources/?apiKey={WATCHMODE_API_KEY}"
             details_response = requests.get(details_url)
-            details_response.raise_for_status()  # Raise an exception for bad status codes
+            details_response.raise_for_status()
             details_data = details_response.json()
 
-            streaming_sources = []
-            for source in details_data:
-                if source['type'] == 'subscription':
-                    streaming_sources.append(source['name'])
-            if streaming_sources:
-                return f"Streaming on: {', '.join(streaming_sources)}"
-            else:
-                return "Not currently available on any streaming services."
+            streaming_sources = [source['name'] for source in details_data if source['type'] == 'subscription']
+            return f"Streaming on: {', '.join(streaming_sources)}" if streaming_sources else "Not currently available on any streaming services."
+
         else:
             return "Movie not found on Watchmode."
+
     except requests.exceptions.RequestException as e:
-        return f"Error fetching streaming data: {e}"
+        logger.error(f"Error fetching streaming data: {e}")
+        return f"Error fetching streaming data."
 
 
-# --- Command Handler ---
+# --- Command Handlers ---
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    """Sends a welcome message and inline buttons."""
+    """Sends a welcome message with inline buttons."""
     try:
-        print("Entering send_welcome function")  # Debug print statement
         markup = telebot.types.InlineKeyboardMarkup(row_width=2)
         markup.add(
             telebot.types.InlineKeyboardButton('Time', callback_data='time'),
@@ -134,10 +127,11 @@ def send_welcome(message):
             telebot.types.InlineKeyboardButton('Streaming Availability', callback_data='streaming_availability')
         )
         bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
-        print("Sent welcome message")  # Debug print statement
+
     except Exception as e:
-        print(f"Error in send_welcome: {e}")  # Print the error to the console
+        logger.error(f"Error in send_welcome: {e}")
         bot.reply_to(message, "Oops! Something went wrong. Please try again later.")
+
 
 # --- Callback Query Handler ---
 
@@ -162,34 +156,35 @@ def callback_query(call):
             movie_name = call.data
             streaming_info = get_streaming_availability(movie_name)
             bot.send_message(call.message.chat.id, streaming_info)
+
     except Exception as e:
-        print(f"Error in callback_query: {e}")
+        logger.error(f"Error in callback_query: {e}")
         bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
 
+
+# --- Message Handlers ---
 
 def process_movie_request(message):
     """Processes the movie title and sends movie details or shows options."""
     try:
         movie_name = message.text
         movies = search_movies(movie_name)
+
         if len(movies) == 1:
-            # Only one movie found, send details directly
             movie_info = get_movie_details(movies[0]['Title'])
             bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
         elif len(movies) > 1:
-            # Multiple movies found, show inline buttons for selection
             markup = telebot.types.InlineKeyboardMarkup()
             for movie in movies:
                 title = movie['Title']
                 year = movie['Year']
-                button_text = f"{title} ({year})"
-                callback_data = title  # Use title as callback data
-                markup.add(telebot.types.InlineKeyboardButton(button_text, callback_data=callback_data))
+                markup.add(telebot.types.InlineKeyboardButton(f"{title} ({year})", callback_data=title))
             bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
         else:
             bot.send_message(message.chat.id, "Movie not found.")
+
     except Exception as e:
-        print(f"Error in process_movie_request: {e}")
+        logger.error(f"Error in process_movie_request: {e}")
         bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
@@ -200,38 +195,17 @@ def process_movie_rating_request(message):
         movie_ratings = get_movie_rating(movie_name)
         bot.send_message(message.chat.id, movie_ratings)
     except Exception as e:
-        print(f"Error in process_movie_rating_request: {e}")
+        logger.error(f"Error in process_movie_rating_request: {e}")
         bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 def process_streaming_availability(message):
     """Processes the movie title and sends streaming availability."""
-    try:
-        movie_name = message.text
-        movies = search_movies(movie_name)
-        if len(movies) == 1:
-            # Only one movie found, send streaming availability directly
-            streaming_info = get_streaming_availability(movies[0]['Title'])
-            bot.send_message(message.chat.id, streaming_info)
-        elif len(movies) > 1:
-            # Multiple movies found, show inline buttons for selection
-            markup = telebot.types.InlineKeyboardMarkup()
-            for movie in movies:
-                title = movie['Title']
-                year = movie['Year']
-                button_text = f"{title} ({year})"
-                callback_data = title  # Use title as callback data
-                markup.add(telebot.types.InlineKeyboardButton(button_text, callback_data=callback_data))
-            bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
-        else:
-            bot.send_message(message.chat.id, "Movie not found.")
-    except Exception as e:
-        print(f"Error in process_streaming_availability: {e}")
-        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
+    # ... (similar structure as process_movie_request) ...
 
 
 # --- Start the Bot ---
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
+    
