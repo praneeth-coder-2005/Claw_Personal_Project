@@ -15,7 +15,7 @@ from google.oauth2 import service_account
 from google.auth.exceptions import RefreshError
 
 # Replace with your actual bot token
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4")  # Replace YOUR_BOT_TOKEN
 
 # Enable logging
 logging.basicConfig(
@@ -25,17 +25,17 @@ logger = logging.getLogger(__name__)
 
 # Service account key (updated with your provided key)
 SERVICE_ACCOUNT_KEY = {
-  "type": "service_account",
-  "project_id": "blogger-test-441717",
-  "private_key_id": "b5058d9596683941c93d5cafe9237198cd6b8869",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJrA93XyB71z+X\nWTS5HsrOZeZXAPaZqv1ym9MEJgWg8oxjWyU1gC0UkuNWsjWFpTm+C3j9EA5GoIrg\nHk0tzqKNEgQFCKtgV9Gxkk2BVQICMPMTddwI4IQQTtDBVtDwnNoVdanxlc0Em4H/\ncgOycPEtsSsPcwViYNTtV4+db1HAkSRdXaJ0HGS/uUiTR1lxjJc0PIrPsX6+Y99R\n6P7vMpRenr2Q43KZRSIztOZ8txSi377YmErIE9qQEmjcjekkbg/ldjTMR08AwUEA\njQYtRFf9l/waRyX+yALpSd9Vv0ktK+OwwY5Uukk6iMEKmB7DQ+L/KQQYobNO1pDY\nV3762S3XAgMBAAECggEAFLoFxud0b7XiF7x30jTLdCX94+A59/YeYTqJl+oOdwmm\niwmRi+uV9oDYM49SN9+QzSrhruSJCxIx47HJjdUoWKZK2neXIWo1J3JZW9rwP2hn\new8IY7Mrb3+iLdSt2aTNNxpmMmmKbhhLZoUBw0OfTepg+hAAtCkuiQwQOwZ3WPqD\nDAxbl/vk7SyR8DonyWnMQInMbvp3FcGV35SybjHS+c3hwmRuBzanX+l3dz/eAUVB\nRYBBsdbfwMvtW9tAjbuRVz7qQLSuulFlOtOZvRHLuv6pVTWK8gzi4Jik+GtJqm3H\nSOtnnXUShFN6MTicNjNGIMXhaxWfbuP+sJaOati1gQKBgQDsVXBzvUolhpnOoxwL\nYzRFErx2uTl927KBOeXxMeqc9IPqiOjNsQzROysEfb05M2rDkzooFFe+TNjqgbvD\nCwgWa41XzFuQAsfunY1mJT524hGlgSV7msRb7KMJVU836ATKzwy8qQr7NGcrgB9N\nXD3kPScrPduYtfTjLzAjfHXpVwKBgQDadDuRVK+p2czTF7ZkoUKS/zwLxchUfmdE\nUX7mojqjabEuDIOIDc10ZDN6K4vVpyqKxx/fKLNTv0ZCGhvZUxH5mOoA6YlxJw4v\nqIoywMuj7FyJV9u07yqYAznnWYllctvkHqAQyZbxYmUQ3jDt4JdXtni6PaYjjCbZ\nXcZ+sUGPgQKBgB/Yd3mxFQ+vboRQqFPEf2ObXbflx6B0/T26joiMwF9791agMjad\nV+vNvEMzqk7N5eIKsbh63UPBWP5okuN6VhGnVnlxORlTtpspsccE18DvP498so9Q\nUItOfL2iODWBVzv44G9/m9Izwn8zGYS0HEboEqIaCMAwLJp8XlE50S2rAoGAIhKr\nD9nzpDxydCJosn1sktz4kqWAv50PolpLvtFi8AYWOqZ9BYWRnCvc05tjLinqusag\nNAB3KALXhIvp+BW64gF1zjqe02VSEyDonU3w9VpyfIGVpT0AmcE3ENyoT4iAv63/\nLV8kCfZc6Sqe2xuCv42YewQOm9DKZnD3+t7O6QECgYEAw6MxYmlDLx+7XgX19HLy\nivrp2quA+00f1JjIK026BcC5jKxxfPGfpwQpdKd5LYhkAveA4kNhfNh4eOOYKmi3\nthutsRyD5b4AaT+uTiHz4Eq82p7cO0Hq813dfgP7UIh6DKqm502H32hxae1yTT44\nkmtsFS6Wqr5wQey7PxehCUY=\n-----END PRIVATE KEY-----\n",
-  "client_email": "blogger-test@blogger-test-441717.iam.gserviceaccount.com",
-  "client_id": "109126077830572082410",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/blogger-test%40blogger-test-441717.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+    "type": "service_account",
+    "project_id": "blogger-test-441717",
+    "private_key_id": "a547cd94ae14deb99dce4465c7876b7a4affea9c",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDHxXgKQX9PCiWU\njgtxdoLse6zAk1+VJVP7gh4pHt5xEn39prsburs41PlKjN9OxJXao5P1HCA9UdFF\nytAdC9vNHjHwc+I4EZJwgn8EbbtPmrYzVpmLMCgo2FYo7q4BXmQGW4MDyVEcqGn3\nUKsQR+uakC0Uuvnplq6XC2TD0rtFn29/cKnmZ8LliiS/9LRDq9MSPFB766uG72C+\nASSpHh4vjqdLXMI0ePTKZ4MUD+ddkyzWGOdrCCdqrF968YuyBeXglh2nknF1A4id\nVeLlNBlwjO3tzReWQKp8gRP698NYvLzdU9eBs83Yx255Niurr/bAGzLE1NBtlIrD\n3U1mMRgFAgMBAAECggEAKh+WVztGV+lA0Vk+Snd91dWiMJ0iq3VKhx8BsxQCPX9z\nt5d/nrI6JhqqUjDwKVDEdGzHlwiON7/Xy8qfJXDJsS+rwhL9YWs7IKQzmkB1Haz2\nvE6HY9UMssgjKtBhOoKnvrtvHc5GXy+X4IFPAMjZgibiipt+dOXD/K93WN9Hg79i\nCAG1SNCkifo4exgyMfPyTNXN7vFMAusa6yPhNgm8Tj/MwdgqBZXfhOcgrLP+2oes\nQFacfn/7uVZYV+gqAxo8ZBFhDQ6StIKHoaQzbz4KwZds0DJ8Iq/9/8Du1nMgBEZ0\nTe5blqv5LHeGcqkP3QL4I3/cEc2H1lLlK/uSAv8RwQKBgQDzVES66CDxRSnQTHsh\nWJd79b/X9Rfjk9Fmfjs+GR7HKwc5ZzAeB+hrl911QbcpY2ZWADlGi0kveSj6zfnj\n2dobUWRqvTmusPysE7uvzFkyqXkPdkReL35gxGJAetwTwfcztpUCmo01vku26IRW\n3+Da+dc5tJk4/LSL/gH4/SHbkQKBgQDSLIwccchgr2xYIbqlyu+B6JhbBUtvsQkV\niD9YcEPEBTZmW66ZIz+UKyK/JfBEoJiRQSfXwx2cFuVXjh0PP0veJ0Wcfeg0uzkU\nqm6gevSwSIKMuN3z3SH5/cuGnRnOY5PlXN0l1s0VSenVIMY8f7qipd1s3u0R4HUT\ntWlAZITzNQKBgQDaUcRs8nMEJqsSklxzmdooxWDAcc5iSTE7RYz/9WfxCUEtFtFM\nUIoPZy2y1ChzgRTDmuXIzpX2ez3ycbaA4ejYU9nGD0te2ruJ5Raj77QkSXwuDE3h\nN7mrNuh0tAcbzw9uHaZqtKJ4Euo6DTsX+zzzG/EofEpxoAKaDGhWrz+ekQKBgQDN\nWCbgl67eACcMCJBS8e6F71oD/C1TCBZHCmJRpwYem7Ul1sfE6TJyMp71QTz54CqQ\nKKej4Aeq/JfArqHnxsD6YUZa+o0IEDBZ55bEhr1RCtc6ZFi+rbxHgtb6Q73170aN\nnuiW0sJ23UtwJ2BntagEx6eKelgH0lSxF9qoxk07TQKBgQCIIHyYVwIFhySWlaZa\nubNS2npk5l5uUdOh33HBPcYuI1JBSrwaSaYGCylc4Aet/7FtPTzCuZ5uvlmdOTuy\n53aJSSHk2APFWmV/Alz+ARvDIfFOXAi7Ilgga6qpChFI6au1z9eUQvI6aD7Q80cx\nKfbHHXCTEZyQqd8ykVPXGZa9Tg==\n-----END PRIVATE KEY-----\n",
+    "client_email": "blogger-test@blogger-test-441717.iam.gserviceaccount.com",
+    "client_id": "111585980206887361113",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/blogger-test%40blogger-test-441717.iam.gserviceaccount.com",
+    "universe_domain": "googleapis.com"
 }
 
 SCOPES = ['https://www.googleapis.com/auth/blogger']
