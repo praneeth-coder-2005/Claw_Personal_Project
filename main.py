@@ -1,124 +1,60 @@
-import os
-import logging
-import sqlite3
-import time
 from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import os
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
+# Telegram Bot API credentials
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Telegram bot token
+API_ID = int(os.getenv("API_ID"))  # Telegram API ID
+API_HASH = os.getenv("API_HASH")  # Telegram API hash
 
-# Environment Variables for Bot
-BOT_TOKEN = os.getenv("BOT_TOKEN", "<your_bot_token>")
-API_ID = int(os.getenv("API_ID", "<your_api_id>"))
-API_HASH = os.getenv("API_HASH", "<your_api_hash>")
+# Email credentials
+SMTP_SERVER = "smtp.gmail.com"  # Gmail SMTP server
+SMTP_PORT = 587  # Gmail SMTP port
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")  # Sender email address
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Sender email password
+BLOGGER_EMAIL = os.getenv("BLOGGER_EMAIL")  # Blogger's secret email address
 
-# Initialize Pyrogram Client with persistent session
-bot = Client(
-    "custom_blog_bot",  # Session file name
-    bot_token=BOT_TOKEN,
-    api_id=API_ID,
-    api_hash=API_HASH
-)
-
-# SQLite Database File
-DB_FILE = "blogs.db"
+# Initialize Telegram Bot
+bot = Client("blogger_email_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
 
-def init_db():
-    """Initialize the SQLite database."""
-    with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS blogs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL
-            )
-        """)
-        conn.commit()
+def send_email(subject, body):
+    """Send an email to Blogger's secret email address."""
+    try:
+        # Create email
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_ADDRESS
+        msg["To"] = BLOGGER_EMAIL
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "html"))
 
-
-# Initialize the database
-init_db()
-
-
-def add_blog(title, content):
-    """Add a new blog post to the database."""
-    with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO blogs (title, content) VALUES (?, ?)", (title, content))
-        conn.commit()
-
-
-def get_all_blogs():
-    """Retrieve all blog posts from the database."""
-    with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, title, content FROM blogs")
-        return cursor.fetchall()
+        # Connect to SMTP server and send email
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_ADDRESS, BLOGGER_EMAIL, msg.as_string())
+        server.quit()
+        print(f"Email sent successfully to {BLOGGER_EMAIL}")
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
 
 
 @bot.on_message(filters.command("post") & filters.private)
 async def post_blog(client, message):
-    """Handles the /post command to add a new blog post."""
-    try:
-        # Check if the command has enough arguments
-        if len(message.command) < 3:
-            await message.reply_text(
-                "Usage: /post <title> <content>\n\nExample: /post My First Blog This is the blog content."
-            )
-            return
+    """Handle the /post command to create a blog post."""
+    if len(message.command) < 3:
+        await message.reply_text("Usage: /post <title> <content>\n\nExample: /post My Blog Title Blog content goes here.")
+        return
 
-        # Extract title and content
-        title = message.command[1]
-        content = " ".join(message.command[2:])
-        logger.info(f"Adding blog post: Title='{title}', Content='{content[:30]}...'")
+    # Extract title and content
+    title = message.command[1]
+    content = " ".join(message.command[2:])
+    print(f"Received post: Title='{title}', Content='{content[:30]}...'")
 
-        # Save the blog post to the database
-        add_blog(title, content)
-        await message.reply_text(f"Blog post added successfully!\n\n**Title**: {title}")
-    except Exception as e:
-        logger.error(f"Error in post_blog: {e}", exc_info=True)
-        await message.reply_text("An error occurred while adding the blog post.")
-
-
-@bot.on_message(filters.command("list") & filters.private)
-async def list_blogs(client, message):
-    """Handles the /list command to list all blog posts."""
-    try:
-        blogs = get_all_blogs()
-        if not blogs:
-            await message.reply_text("No blog posts found.")
-            return
-
-        blog_list = "\n\n".join(
-            [f"{blog[0]}. **{blog[1]}**\n{blog[2][:50]}..." for blog in blogs]
-        )
-        await message.reply_text(f"Blog Posts:\n\n{blog_list}")
-    except Exception as e:
-        logger.error(f"Error in list_blogs: {e}", exc_info=True)
-        await message.reply_text("An error occurred while listing the blog posts.")
-
-
-def main():
-    """Run the bot with flood wait handling."""
-    while True:
-        try:
-            logger.info("Starting the Pyrogram bot...")
-            bot.run()  # Keeps the bot running indefinitely
-        except FloodWait as e:
-            logger.warning(f"Flood wait error: Waiting for {e.value} seconds before retrying...")
-            time.sleep(e.value)  # Wait for the required time before retrying
-        except Exception as e:
-            logger.error(f"Bot crashed: {e}", exc_info=True)
-            break
-
-
-if __name__ == "__main__":
-    main()
+    # Send email to Blogger
+    if send_email(title, content):
+        await message.reply_text(f"Blog post
