@@ -1,12 +1,13 @@
 import os
 import json
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler
+from telegram.ext.filters import Filters
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
 # Replace with your actual bot token
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4"  # Updated with your token
 
 # Service account key (replace with your actual key)
 SERVICE_ACCOUNT_KEY = {
@@ -30,8 +31,8 @@ credentials = service_account.Credentials.from_service_account_info(
 # Authenticate with the Blogger API
 blogger = build('blogger', 'v3', credentials=credentials)
 
-# Get the blog ID (replace with your actual blog ID)
-blog_id = 'YOUR_BLOG_ID'  # Replace with your actual blog ID
+# Get the blog ID
+blog_id = '737863940949257967'  
 
 def create_draft_post(update: Update, context):
     """Creates a draft post on the blog."""
@@ -69,4 +70,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                                            
