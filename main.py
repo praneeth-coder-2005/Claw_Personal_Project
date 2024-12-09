@@ -164,12 +164,26 @@ def download_file(url, file_name, message):
                     progress_bar.update(len(chunk))
                     # Update progress in Telegram (every 10%)
                     if progress_bar.n % (file_size // 10) == 0:
-                        bot.edit_message_text(
-                            chat_id=message.chat.id,
-                            message_id=user_data[message.chat.id]['progress_message_id'],
-                            text=f"Downloading: {file_name}\n"
-                                 f"Progress: {progress_bar.n / file_size * 100:.1f}%"
-                        )
+                        try:
+                            bot.edit_message_text(
+                                chat_id=message.chat.id,
+                                message_id=user_data[message.chat.id]['progress_message_id'],
+                                text=f"Downloading: {file_name}\n"
+                                     f"Progress: {progress_bar.n / file_size * 100:.1f}%"
+                            )
+                        except telebot.apihelper.ApiException as e:
+                            if 'retry_after' in e.result_json:
+                                time.sleep(e.result_json['retry_after'])
+                                # Retry the update
+                                bot.edit_message_text(
+                                    chat_id=message.chat.id,
+                                    message_id=user_data[message.chat.id]['progress_message_id'],
+                                    text=f"Downloading: {file_name}\n"
+                                         f"Progress: {progress_bar.n / file_size * 100:.1f}%"
+                                )
+                            else:
+                                raise e  # Re-raise the exception if it's not a FloodWait
+
         progress_bar.close()
         return file_name
 
@@ -207,12 +221,26 @@ def upload_large_file_to_telegram(file_name, message):
                 # Update progress bar and Telegram message
                 progress_bar.update(1)
                 if progress_bar.n % (total_parts // 10) == 0:
-                    bot.edit_message_text(
-                        chat_id=message.chat.id,
-                        message_id=user_data[message.chat.id]['progress_message_id'],
-                        text=f"Uploading: {file_name}\n"
-                             f"Progress: {progress_bar.n / total_parts * 100:.1f}%"
-                    )
+                    try:
+                        bot.edit_message_text(
+                            chat_id=message.chat.id,
+                            message_id=user_data[message.chat.id]['progress_message_id'],
+                            text=f"Uploading: {file_name}\n"
+                                 f"Progress: {progress_bar.n / total_parts * 100:.1f}%"
+                        )
+                    except telebot.apihelper.ApiException as e:
+                        if 'retry_after' in e.result_json:
+                            time.sleep(e.result_json['retry_after'])
+                            # Retry the update
+                            bot.edit_message_text(
+                                chat_id=message.chat.id,
+                                message_id=user_data[message.chat.id]['progress_message_id'],
+                                text=f"Uploading: {file_name}\n"
+                                     f"Progress: {progress_bar.n / total_parts * 100:.1f}%"
+                            )
+                        else:
+                            raise e  # Re-raise the exception if it's not a FloodWait
+
             progress_bar.close()
 
             # Send the final file
@@ -257,7 +285,14 @@ def progress_callback(chat_id, progress_bar):
 
 def file_size_str(file_size):
     """Converts file size to human-readable string."""
-    # ... (same as before) ...
+    if file_size < 1024:
+        return f"{file_size} B"
+    elif file_size < 1024 * 1024:
+        return f"{file_size / 1024:.2f} KB"
+    elif file_size < 1024 * 1024 * 1024:
+        return f"{file_size / (1024 * 1024):.2f} MB"
+    else:
+        return f"{file_size / (1024 * 1024 * 1024):.2f} GB"
 
 
 # --- Command Handlers ---
@@ -327,12 +362,41 @@ def callback_query(call):
 
 def process_movie_request(message):
     """Processes the movie title and sends movie details or shows options."""
-    # ... (same as before) ...
+    try:
+        movie_name = message.text
+        movies = search_movies(movie_name)
+
+        if movies is None:
+            bot.send_message(message.chat.id, "Movie search failed. Please try again later.")
+            return
+
+        if len(movies) == 1:
+            movie_info = get_movie_details(movies[0]['Title'])
+            bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
+        elif len(movies) > 1:
+            markup = telebot.types.InlineKeyboardMarkup()
+            for movie in movies:
+                title = movie['Title']
+                year = movie['Year']
+                markup.add(telebot.types.InlineKeyboardButton(f"{title} ({year})",callback_data=title))
+            bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "Movie not found.")
+
+    except Exception as e:
+        logger.error(f"Error in process_movie_request: {e}")
+        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 def process_movie_rating_request(message):
     """Processes the movie title and sends movie ratings."""
-    # ... (same as before) ...
+    try:
+        movie_name = message.text
+        movie_ratings = get_movie_rating(movie_name)
+        bot.send_message(message.chat.id, movie_ratings)
+    except Exception as e:
+        logger.error(f"Error in process_movie_rating_request: {e}")
+        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 def process_url_upload(message):
@@ -391,7 +455,7 @@ def process_rename(message):
 
 
 def process_file_upload(message, custom_file_name=None):
-       """Downloads and uploads the file."""
+    """Downloads and uploads the file."""
     try:
         url = user_data[message.chat.id]['url']
         file_size = user_data[message.chat.id]['file_size']
@@ -435,5 +499,5 @@ def process_file_upload(message, custom_file_name=None):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
+                             
     
