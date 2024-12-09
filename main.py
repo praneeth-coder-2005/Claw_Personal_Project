@@ -1,7 +1,7 @@
 import telebot
 import datetime
 import requests
-
+import logging
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)  # Set logging level to DEBUG for detailed logs
 
