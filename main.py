@@ -1,6 +1,5 @@
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-import os
 
 # Path to the client credentials JSON file
 CLIENT_CREDENTIALS = "Client_credentials.txt"
@@ -9,9 +8,10 @@ CLIENT_CREDENTIALS = "Client_credentials.txt"
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
 
 def authenticate_on_vps():
-    """Authenticate the user and save token for future use."""
+    """Authenticate the user using OAuth 2.0."""
     flow = InstalledAppFlow.from_client_secrets_file(CLIENT_CREDENTIALS, SCOPES)
-    credentials = flow.run_console()  # No browser needed, works via terminal
+    # Use a local server for authentication (works on VPS)
+    credentials = flow.run_local_server(port=8080, open_browser=False)
     print("Authentication successful.")
     return credentials
 
