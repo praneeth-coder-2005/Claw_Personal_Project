@@ -2,7 +2,7 @@ import telebot
 import datetime
 
 # Replace 'YOUR_BOT_TOKEN' with the actual token from BotFather
-BOT_TOKEN = 'YOUR_BOT_TOKEN'
+BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
