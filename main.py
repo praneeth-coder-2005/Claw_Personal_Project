@@ -18,68 +18,20 @@ def get_current_date():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d")
 
-# --- Command Handlers ---
+# --- Command Handler ---
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def send_welcome(message):
-    """Sends a welcome message and help information."""
-    markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
-    markup.add(
-        telebot.types.KeyboardButton('/time'),
-        telebot.types.KeyboardButton('/date'),
-        telebot.types.KeyboardButton('/caps'),
-        telebot.types.KeyboardButton('/buttons')
-    )
-
-    bot.reply_to(message, 
-                 "Howdy! I'm a helpful Telegram bot. \n"
-                 "Here's what I can do:\n"
-                 "/hello - Greet me.\n"
-                 "/info - Get info about me.\n"
-                 "/time - Get the current time.\n"
-                 "/date - Get the current date.\n"
-                 "/caps - Convert your text to ALL CAPS.\n"
-                 "/buttons - Show you some buttons.",
-                 reply_markup=markup)
-
-@bot.message_handler(commands=['hello'])
-def send_hello(message):
-    """Sends a hello message."""
-    bot.reply_to(message, "Hello there!")
-
-@bot.message_handler(commands=['info'])
-def send_info(message):
-    """Sends information about the bot."""
-    bot.reply_to(message, "I'm a bot created with Python and the Telebot library.")
-
-@bot.message_handler(commands=['time'])
-def send_time(message):
-    """Sends the current time."""
-    bot.reply_to(message, f"The current time is: {get_current_time()}")
-
-@bot.message_handler(commands=['date'])
-def send_date(message):
-    """Sends the current date."""
-    bot.reply_to(message, f"Today's date is: {get_current_date()}")
-
-@bot.message_handler(commands=['caps'])
-def uppercase(message):
-    """Converts the text after /caps to uppercase."""
-    text = message.text.replace('/caps ', '')
-    bot.reply_to(message, text.upper())
-
-# --- Inline Button Handler ---
-
-@bot.message_handler(commands=['buttons'])
-def send_buttons(message):
-    """Sends a message with inline buttons."""
+    """Sends a welcome message and inline buttons."""
     markup = telebot.types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         telebot.types.InlineKeyboardButton('Time', callback_data='time'),
         telebot.types.InlineKeyboardButton('Date', callback_data='date'),
-        telebot.types.InlineKeyboardButton('Caps', callback_data='caps')
+        telebot.types.InlineKeyboardButton('Caps', callback_data='caps'),
+        telebot.types.InlineKeyboardButton('Hello', callback_data='hello'),
+        telebot.types.InlineKeyboardButton('Info', callback_data='info')
     )
-    bot.send_message(message.chat.id, "Click a button:", reply_markup=markup)
+    bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
 
 # --- Callback Query Handler ---
 
@@ -93,6 +45,12 @@ def callback_query(call):
     elif call.data == "caps":
         bot.answer_callback_query(call.id, text="Send me text to convert to CAPS")
         bot.register_next_step_handler(call.message, process_caps_text)
+    elif call.data == "hello":
+        bot.answer_callback_query(call.id)  # Clear the notification
+        bot.send_message(call.message.chat.id, "Hello there!")
+    elif call.data == "info":
+        bot.answer_callback_query(call.id) 
+        bot.send_message(call.message.chat.id, "I'm a bot created with Python and Telebot.")
 
 def process_caps_text(message):
     """Processes the text sent after clicking the 'Caps' button."""
