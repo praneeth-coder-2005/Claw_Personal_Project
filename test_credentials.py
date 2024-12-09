@@ -46,8 +46,7 @@ def authenticate():
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 CREDENTIALS_FILE, SCOPES)
-            # Use out-of-band flow
-            flow.run_console()  
+            creds = flow.run_console()
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
@@ -108,4 +107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+            
