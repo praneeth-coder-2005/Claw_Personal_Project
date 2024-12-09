@@ -13,7 +13,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
 # Replace with your actual bot token
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7704211647:AAGslX2jlqGpzeXbJlX61egbMHb8eotNxs4") 
 
 # Enable logging
 logging.basicConfig(
@@ -22,7 +22,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Service account key
+# Service account key (replace with your actual key)
 SERVICE_ACCOUNT_KEY = {
     "type": "service_account",
     "project_id": "blogger-test-441717",
@@ -69,7 +69,10 @@ async def create_draft_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error creating post: {e}")
-        await update.message.reply_text('Error creating post.')
+        if isinstance(e, InvalidJwtSignatureError):
+            await update.message.reply_text('Invalid JWT Signature. Please check your service account key.')
+        else:
+            await update.message.reply_text('Error creating post.')
 
 def main():
     """Starts the bot."""
@@ -83,4 +86,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+    
