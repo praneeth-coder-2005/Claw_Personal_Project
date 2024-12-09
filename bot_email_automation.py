@@ -23,14 +23,14 @@ bot = Client("blogger_email_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=A
 def send_email(subject, body):
     """Send an email to Blogger's secret email address."""
     try:
-        # Create email
+        # Create the email
         msg = MIMEMultipart()
         msg["From"] = EMAIL_ADDRESS
         msg["To"] = BLOGGER_EMAIL
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
 
-        # Connect to SMTP server and send email
+        # Connect to SMTP server and send the email
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
@@ -57,4 +57,16 @@ async def post_blog(client, message):
 
     # Send email to Blogger
     if send_email(title, content):
-        await message.reply_text(f"Blog post
+        await message.reply_text(f"Blog post sent successfully!\n\n**Title**: {title}")
+    else:
+        await message.reply_text("Failed to send the blog post. Please check the logs.")
+
+
+def main():
+    """Start the Telegram bot."""
+    print("Starting the Telegram bot...")
+    bot.run()
+
+
+if __name__ == "__main__":
+    main()
