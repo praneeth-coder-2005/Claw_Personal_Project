@@ -1,7 +1,6 @@
 import datetime
 import logging
 import os
-import re
 import time
 from io import BytesIO
 
@@ -30,8 +29,107 @@ user_data = {}  # To store user-specific data during file upload
 
 # --- Helper Functions ---
 
-# ... (Other helper functions: _make_omdb_api_request, get_movie_details,
-#      get_movie_rating, search_movies, get_current_time, get_current_date) ...
+def _make_omdb_api_request(url):
+    """Makes a request to the OMDb API and handles errors."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        if data['Response'] == 'True':
+            return data
+        else:
+            return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error making OMDb API request: {e}")
+        return None
+
+
+def get_movie_details(movie_name):
+    """Fetches movie details from OMDb API."""
+    base_url = "http://www.omdbapi.com/?"
+    complete_url = f"{base_url}apikey={OMDB_API_KEY}&t={movie_name}"
+    data = _make_omdb_api_request(complete_url)
+
+    if data:
+        # Extract and format movie details (use Markdown for better readability)
+        title = data['Title']
+        year = data['Year']
+        rated = data['Rated']
+        released = data['Released']
+        runtime = data['Runtime']
+        genre = data['Genre']
+        director = data['Director']
+        writer = data['Writer']
+        actors = data['Actors']
+        plot = data['Plot']
+        language = data['Language']
+        country = data['Country']
+        awards = data['Awards']
+        poster = data['Poster']
+        imdb_rating = data['imdbRating']
+        imdb_votes = data['imdbVotes']
+        imdb_id = data['imdbID']
+
+        movie_info = f"""
+        *Title:* {title} ({year})
+        *Rated:* {rated}
+        *Released:* {released}
+        *Runtime:* {runtime}
+        *Genre:* {genre}
+        *Director:* {director}
+        *Writer:* {writer}
+        *Actors:* {actors}
+        *Plot:* {plot}
+        *Language:* {language}
+        *Country:* {country}
+        *Awards:* {awards}
+        *IMDb Rating:* {imdb_rating} ({imdb_votes} votes)
+        *IMDb ID:* {imdb_id}
+        *Poster:* {poster}
+        """
+        return movie_info
+    else:
+        return "Error fetching movie data or movie not found."
+
+
+def get_movie_rating(movie_name):
+    """Fetches movie ratings from OMDb API."""
+    base_url = "http://www.omdbapi.com/?"
+    complete_url = f"{base_url}apikey={OMDB_API_KEY}&t={movie_name}"
+    data = _make_omdb_api_request(complete_url)
+
+    if data:
+        ratings = data['Ratings']
+        rating_str = ""
+        for rating in ratings:
+            source = rating['Source']
+            value = rating['Value']
+            rating_str += f"{source}: {value}\n"
+        return rating_str
+    else:
+        return "Error fetching movie data or movie not found."
+
+
+def search_movies(movie_name):
+    """Searches for movies with similar names using OMDb API."""
+    base_url = "http://www.omdbapi.com/?"
+    complete_url = f"{base_url}apikey={OMDB_API_KEY}&s={movie_name}"
+    data = _make_omdb_api_request(complete_url)
+
+    if data:
+        return data['Search']
+    else:
+        return []
+
+
+def get_current_time():
+    """Returns the current time as a formatted string."""
+    return datetime.datetime.now().strftime("%H:%M:%S")
+
+
+def get_current_date():
+    """Returns the current date as a formatted string."""
+    return datetime.datetime.now().strftime("%Y-%m-%d")
 
 
 def get_file_size(url):
@@ -132,7 +230,28 @@ def upload_large_file_to_telegram(file_name, message):
 def progress_callback(chat_id, progress_bar):
     """Callback function for updating the progress bar in Telegram."""
     def inner(current, total):
-        # ... (same as before) ...
+        progress_bar.update(current - progress_bar.n)
+        # Update progress in Telegram (every 10%)
+        if progress_bar.n % (total // 10) == 0:
+            try:
+                bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=user_data[chat_id]['progress_message_id'],
+                    caption=f"Uploading: {progress_bar.desc}\n"
+                            f"Progress: {progress_bar.n / total * 100:.1f}%"
+                )
+            except telebot.apihelper.ApiException as e:
+                if 'retry_after' in e.result_json:
+                    time.sleep(e.result_json['retry_after'])
+                    # Retry the update
+                    bot.edit_message_caption(
+                        chat_id=chat_id,
+                        message_id=user_data[chat_id]['progress_message_id'],
+                        caption=f"Uploading: {progress_bar.desc}\n"
+                                f"Progress: {progress_bar.n / total * 100:.1f}%"
+                    )
+                else:
+                    raise e  # Re-raise the exception if it's not a FloodWait
     return inner
 
 
@@ -146,7 +265,20 @@ def file_size_str(file_size):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     """Sends a welcome message with inline buttons."""
-    # ... (same as before) ...
+    try:
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton('Time', callback_data='time'),
+            telebot.types.InlineKeyboardButton('Date', callback_data='date'),
+            telebot.types.InlineKeyboardButton('Movie Details', callback_data='movie_details'),
+            telebot.types.InlineKeyboardButton('Movie Ratings', callback_data='movie_ratings'),
+            telebot.types.InlineKeyboardButton('URL Upload', callback_data='url_upload')
+        )
+        bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
+
+    except Exception as e:
+        logger.error(f"Error in send_welcome: {e}")
+        bot.reply_to(message, "Oops! Something went wrong. Please try again later.")
 
 
 # --- Callback Query Handler ---
@@ -154,7 +286,41 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     """Handles inline button callbacks."""
-    # ... (same as before) ...
+    try:
+        if call.data == "time":
+            bot.answer_callback_query(call.id, text=f"Current time: {get_current_time()}")
+        elif call.data == "date":
+            bot.answer_callback_query(call.id, text=f"Today's date: {get_current_date()}")
+        elif call.data == "movie_details":
+            bot.answer_callback_query(call.id)
+            bot.send_message(call.message.chat.id, "Send me a movie title to get details")
+            bot.register_next_step_handler(call.message, process_movie_request)
+        elif call.data == "movie_ratings":
+            bot.answer_callback_query(call.id)
+            bot.send_message(call.message.chat.id, "Send me a movie title to get ratings")
+            bot.register_next_step_handler(call.message, process_movie_rating_request)
+        elif call.data == "url_upload":
+            bot.answer_callback_query(call.id)
+            bot.send_message(call.message.chat.id, "Send me the URL of the file you want to upload:")
+            bot.register_next_step_handler(call.message, process_url_upload)
+        elif call.data == "rename":
+            bot.answer_callback_query(call.id)
+            message = call.message
+            bot.send_message(message.chat.id, "Enter a new file name (without extension):")
+            bot.register_next_step_handler(message, process_rename)
+        elif call.data == "default" or call.data == "cancel":
+            bot.answer_callback_query(call.id)
+            message = call.message
+            process_file_upload(message, custom_file_name=None)  # Use default name if "default" is clicked
+        else:  # Handle movie selection callbacks
+            bot.answer_callback_query(call.id)
+            movie_name = call.data
+            movie_info = get_movie_details(movie_name)
+            bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
+
+    except Exception as e:
+        logger.error(f"Error in callback_query: {e}")
+        bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 # --- Message Handlers ---
@@ -171,16 +337,61 @@ def process_movie_rating_request(message):
 
 def process_url_upload(message):
     """Handles the URL upload request."""
-    # ... (same as before) ...
+    try:
+        url = message.text.strip()
+        file_name = os.path.basename(url)
+        file_size = get_file_size(url)
+
+        if file_size == 0:
+            bot.send_message(message.chat.id, "Invalid URL or unable to get file size.")
+            return
+
+        # Extract original file name and extension
+        original_file_name, original_file_ext = os.path.splitext(file_name)
+
+        # Show options for renaming or using the default name
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton('Default', callback_data='default'),
+            telebot.types.InlineKeyboardButton('Rename', callback_data='rename')
+        )
+
+        bot.send_message(
+            message.chat.id,
+            f"File: {original_file_name}{original_file_ext}\n"
+            f"Size: {file_size_str(file_size)}\n"
+            f"Choose an option:",
+            reply_markup=markup
+        )
+
+        # Store user data for later use
+        user_data[message.chat.id] = {'url': url, 'file_name': file_name, 'file_size': file_size}
+
+    except Exception as e:
+        logger.error(f"Error in process_url_upload: {e}")
+        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 def process_rename(message):
     """Handles the file renaming."""
-    # ... (same as before) ...
+    try:
+        new_file_name = message.text.strip()
+
+        # Get original file extension from user_data
+        original_file_ext = os.path.splitext(user_data[message.chat.id]['file_name'])[1]
+
+        # Combine new file name with original extension
+        custom_file_name = f"{new_file_name}{original_file_ext}"
+
+        process_file_upload(message, custom_file_name)
+
+    except Exception as e:
+        logger.error(f"Error in process_rename: {e}")
+        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
 def process_file_upload(message, custom_file_name=None):
-    """Downloads and uploads the file."""
+       """Downloads and uploads the file."""
     try:
         url = user_data[message.chat.id]['url']
         file_size = user_data[message.chat.id]['file_size']
@@ -224,4 +435,5 @@ def process_file_upload(message, custom_file_name=None):
 
 if __name__ == '__main__':
     bot.infinity_polling()
+        
     
