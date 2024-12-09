@@ -1,5 +1,6 @@
 import telebot
 import datetime
+import requests
 
 # Bot token (already replaced)
 BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'
@@ -18,6 +19,27 @@ def get_current_date():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d")
 
+def get_movie_details(movie_name):
+    """Fetches movie details from OMDb API."""
+    api_key = "a3b61eaa"  # Your OMDb API key
+    base_url = "http://www.omdbapi.com/?"
+    complete_url = f"{base_url}apikey={api_key}&t={movie_name}"
+    response = requests.get(complete_url)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data['Response'] == 'True':
+            title = data['Title']
+            year = data['Year']
+            plot = data['Plot']
+            poster = data['Poster']
+            imdb_rating = data['imdbRating']
+            return f"Title: {title}\nYear: {year}\nPlot: {plot}\nIMDb Rating: {imdb_rating}\nPoster: {poster}"
+        else:
+            return "Movie not found."
+    else:
+        return "Error fetching movie data."
+
 # --- Command Handler ---
 
 @bot.message_handler(commands=['start'])
@@ -27,10 +49,7 @@ def send_welcome(message):
     markup.add(
         telebot.types.InlineKeyboardButton('Time', callback_data='time'),
         telebot.types.InlineKeyboardButton('Date', callback_data='date'),
-        telebot.types.InlineKeyboardButton('Set Reminder', callback_data='set_reminder'),
-        telebot.types.InlineKeyboardButton('Get My ID', callback_data='get_id'),
-        telebot.types.InlineKeyboardButton('Forward Message', callback_data='forward_message'),
-        telebot.types.InlineKeyboardButton('Extract Text', callback_data='extract_text')
+        telebot.types.InlineKeyboardButton('Movie Details', callback_data='movie_details')
     )
     bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
 
@@ -43,62 +62,18 @@ def callback_query(call):
         bot.answer_callback_query(call.id, text=f"Current time: {get_current_time()}")
     elif call.data == "date":
         bot.answer_callback_query(call.id, text=f"Today's date: {get_current_date()}")
-    elif call.data == "set_reminder":
-        bot.answer_callback_query(call.id, text="Send me a message in the format 'reminder <minutes> <message>'")
-        bot.register_next_step_handler(call.message, process_reminder)
-    elif call.data == "get_id":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, f"Your Telegram ID: {call.from_user.id}")
-    elif call.data == "forward_message":
-        bot.answer_callback_query(call.id, text="Forward the message you want to me")
-        bot.register_next_step_handler(call.message, process_forward_message)
-    elif call.data == "extract_text":
-        bot.answer_callback_query(call.id, text="Send me a photo with text to extract")
-        bot.register_next_step_handler(call.message, process_extract_text)
+    elif call.data == "movie_details":
+        bot.answer_callback_query(call.id, text="Send me a movie title to get details")
+        bot.register_next_step_handler(call.message, process_movie_request)
 
-def process_reminder(message):
-    """Processes the reminder message and sets a reminder."""
-    try:
-        parts = message.text.split(' ', 2)
-        minutes = int(parts[1])
-        reminder_text = parts[2]
-        bot.send_message(message.chat.id, f"Reminder set for {minutes} minutes!")
-        time.sleep(minutes * 60)  # Wait for the specified time
-        bot.send_message(message.chat.id, f"Reminder: {reminder_text}")
-    except (IndexError, ValueError):
-        bot.send_message(message.chat.id, "Invalid reminder format. Use 'reminder <minutes> <message>'")
-
-def process_forward_message(message):
-    """Forwards the received message to the user."""
-    if message.forward_from:
-        bot.send_message(message.chat.id, f"Forwarded message:\n\n{message.text}")
-    else:
-        bot.send_message(message.chat.id, "Please forward a message to me.")
-
-def process_extract_text(message):
-    """Extracts text from the photo and sends it to the user."""
-    # This is a placeholder. You'll need to use an OCR library (like pytesseract) to implement this.
-    bot.send_message(message.chat.id, "This feature is not yet implemented.")
-    # Example implementation with pytesseract (you'll need to install it: pip install pytesseract)
-    # if message.photo:
-    #     file_id = message.photo[-1].file_id
-    #     file_info = bot.get_file(file_id)
-    #     downloaded_file = bot.download_file(file_info.file_path)
-    #     with open("image.jpg", 'wb') as new_file:
-    #         new_file.write(downloaded_file)
-    #     try:
-    #         from PIL import Image
-    #         import pytesseract
-    #         text = pytesseract.image_to_string(Image.open('image.jpg'))
-    #         bot.reply_to(message, f"Extracted text:\n\n{text}")
-    #     except:
-    #         bot.reply_to(message, "Error extracting text.")
-    # else:
-    #     bot.reply_to(message, "Please send a photo with text.")
-
+def process_movie_request(message):
+    """Processes the movie title and sends movie details."""
+    movie_name = message.text
+    movie_info = get_movie_details(movie_name)
+    bot.send_message(message.chat.id, movie_info)
 
 # --- Start the Bot ---
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
+    
