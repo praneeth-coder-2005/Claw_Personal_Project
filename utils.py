@@ -1,304 +1,200 @@
-# utils.py
-import datetime
+import asyncio
 import logging
-import os
-import time
+import telebot
 
-import requests
-import telebot  # Import telebot here
-
-from config import OMDB_API_KEY  # Import from config.py
+from utils import (
+    get_current_time,
+    get_current_date,
+    get_movie_details,
+    get_movie_rating,
+    search_movies,
+    process_url_upload,
+    process_rename,
+    process_file_upload,
+)
+from config import BOT_TOKEN, API_ID, API_HASH  # Import from config.py
 
 # --- Logging ---
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# --- Bot Initialization ---
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# --- Pyrogram Client Initialization ---
+from pyrogram import Client, filters  # Import pyrogram here
+
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+
 # --- Global Variables ---
 user_data = {}  # To store user-specific data during file upload
 
 
-# --- Helper Functions ---
-def _make_omdb_api_request(url):
-    """Makes a request to the OMDb API and handles errors."""
+# --- Command Handlers ---
+@bot.message_handler(commands=["start", "help"])
+def send_welcome(message):
+    """Sends a welcome message with inline buttons."""
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        if data["Response"] == "True":
-            return data
-        else:
-            return None
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error making OMDb API request: {e}")
-        return None
-
-
-def get_movie_details(movie_name):
-    """Fetches movie details from OMDb API."""
-    base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={OMDB_API_KEY}&t={movie_name}"
-    data = _make_omdb_api_request(complete_url)
-
-    if data:
-        # Extract and format movie details (use Markdown for better readability)
-        fields = [
-            "Title",
-            "Year",
-            "Rated",
-            "Released",
-            "Runtime",
-            "Genre",
-            "Director",
-            "Writer",
-            "Actors",
-            "Plot",
-            "Language",
-            "Country",
-            "Awards",
-            "Poster",
-            "imdbRating",
-            "imdbVotes",
-            "imdbID",
-        ]
-        movie_info = "\n".join([f"*{field}:* {data[field]}" for field in fields])
-        return movie_info
-    else:
-        return "Error fetching movie data or movie not found."
-
-
-def get_movie_rating(movie_name):
-    """Fetches movie ratings from OMDb API."""
-    base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={OMDB_API_KEY}&t={movie_name}"
-    data = _make_omdb_api_request(complete_url)
-
-    if data:
-        ratings = data["Ratings"]
-        rating_str = ""
-        for rating in ratings:
-            source = rating["Source"]
-            value = rating["Value"]
-            rating_str += f"{source}: {value}\n"
-        return rating_str
-    else:
-        return "Error fetching movie data or movie not found."
-
-
-def search_movies(movie_name):
-    """Searches for movies with similar names using OMDb API."""
-    base_url = "http://www.omdbapi.com/?"
-    complete_url = f"{base_url}apikey={OMDB_API_KEY}&s={movie_name}"
-    data = _make_omdb_api_request(complete_url)
-
-    if data:
-        return data["Search"]
-    else:
-        return []
-
-
-def get_current_time():
-    """Returns the current time as a formatted string."""
-    return datetime.datetime.now().strftime("%H:%M:%S")
-
-
-def get_current_date():
-    """Returns the current date as a formatted string."""
-    return datetime.datetime.now().strftime("%Y-%m-%d")
-
-
-def get_file_size(url):
-    """Gets the file size from the Content-Length header."""
-    try:
-        response = requests.head(url)
-        response.raise_for_status()
-        file_size = int(response.headers.get("content-length", 0))
-        return file_size
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error getting file size: {e}")
-        return 0
-
-
-def download_file(url, file_name, message, bot):  # Add bot as an argument
-    """Downloads the file from the URL with a progress bar (in Telegram)."""
-    file_size = get_file_size(url)
-    if file_size == 0:
-        bot.send_message(message.chat.id, "Could not determine file size.")
-        return None
-
-    try:
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-
-        # Send initial message with progress bar
-        progress_message = bot.send_message(
-            message.chat.id, f"Downloading: {file_name}\nProgress: 0.0%"
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton("Time", callback_data="time"),
+            telebot.types.InlineKeyboardButton("Date", callback_data="date"),
+            telebot.types.InlineKeyboardButton("Movie Details", callback_data="movie_details"),
+            telebot.types.InlineKeyboardButton("Movie Ratings", callback_data="movie_ratings"),
+            telebot.types.InlineKeyboardButton("URL Upload", callback_data="url_upload"),
         )
-        user_data[message.chat.id]["progress_message_id"] = (
-            progress_message.message_id
+        bot.reply_to(
+            message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup
         )
 
-        with open(file_name, "wb") as f:
-            downloaded = 0
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    # Update progress in Telegram (every 10%)
-                    if downloaded % (file_size // 10) == 0:
-                        try:
-                            # Calculate progress percentage
-                            progress_percent = (downloaded / file_size) * 100
-
-                            # Update the progress message
-                            bot.edit_message_text(
-                                chat_id=message.chat.id,
-                                message_id=progress_message.message_id,
-                                text=f"Downloading: {file_name}\nProgress: {progress_percent:.1f}%",
-                            )
-
-                        except telebot.apihelper.ApiException as e:
-                            if "retry_after" in e.result_json:
-                                time.sleep(e.result_json["retry_after"])
-
-                                # Retry the update
-                                bot.edit_message_text(
-                                    chat_id=message.chat.id,
-                                    message_id=progress_message.message_id,
-                                    text=f"Downloading: {file_name}\nProgress: {progress_percent:.1f}%",
-                                )
-                            else:
-                                raise e
-
-        # Final update to the progress bar
-        bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=progress_message.message_id,
-            text=f"Downloaded: {file_name}\nProgress: 100.0%",
+    except Exception as e:
+        logger.error(f"Error in send_welcome: {e}")
+        bot.reply_to(
+            message, "Oops! Something went wrong. Please try again later."
         )
-        return file_name
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error downloading file: {e}")
-        bot.send_message(message.chat.id, f"Error downloading the file: {e}")
-        return None
 
 
-def file_size_str(file_size):
-    """Converts file size to human-readable string."""
-    if file_size < 1024:
-        return f"{file_size} B"
-    elif file_size < 1024 * 1024:
-        return f"{file_size / 1024:.2f} KB"
-    elif file_size < 1024 * 1024 * 1024:
-        return f"{file_size / (1024 * 1024):.2f} MB"
-    else:
-        return f"{file_size / (1024 * 1024 * 1024):.2f} GB"
-
-
-def process_url_upload(message, bot, app):  # Add bot and app as arguments
-    """Handles the URL upload request."""
+# --- Callback Query Handler ---
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    """Handles inline button callbacks."""
     try:
-        url = message.text.strip()
-        file_name = os.path.basename(url)
-        file_size = get_file_size(url)
-
-        if file_size == 0:
+        if call.data == "time":
+            bot.answer_callback_query(
+                call.id, text=f"Current time: {get_current_time()}"
+            )
+        elif call.data == "date":
+            bot.answer_callback_query(
+                call.id, text=f"Today's date: {get_current_date()}"
+            )
+        elif call.data == "movie_details":
+            bot.answer_callback_query(call.id)
             bot.send_message(
-                message.chat.id, "Invalid URL or unable to get file size."
+                call.message.chat.id, "Send me a movie title to get details"
+            )
+            bot.register_next_step_handler(call.message, process_movie_request)
+        elif call.data == "movie_ratings":
+            bot.answer_callback_query(call.id)
+            bot.send_message(
+                call.message.chat.id, "Send me a movie title to get ratings"
+            )
+            bot.register_next_step_handler(call.message, process_movie_rating_request)
+        elif call.data == "url_upload":
+            bot.answer_callback_query(call.id)
+            bot.send_message(
+                call.message.chat.id,
+                "Send me the URL of the file you want to upload:",
+            )
+            bot.register_next_step_handler(call.message, lambda msg: process_url_upload(msg, bot, app))  # Pass bot and app to process_url_upload
+        elif call.data == "rename":
+            bot.answer_callback_query(call.id)
+            message = call.message
+            bot.send_message(
+                message.chat.id, "Enter a new file name (without extension):"
+            )
+            bot.register_next_step_handler(message, lambda msg: process_rename(msg, bot, app))  # Pass bot and app to process_rename
+        elif call.data == "default" or call.data == "cancel":
+            bot.answer_callback_query(call.id)
+            message = call.message
+            process_file_upload(
+                message, custom_file_name=None, bot=bot, app=app
+            )  # Use default name if "default" is clicked, pass bot and app here as well
+        else:  # Handle movie selection callbacks
+            bot.answer_callback_query(call.id)
+            movie_name = call.data
+            movie_info = get_movie_details(movie_name)
+            bot.send_message(call.message.chat.id, movie_info, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Error in callback_query: {e}")
+        bot.send_message(
+            call.message.chat.id, "Oops! Something went wrong. Please try again later."
+        )
+
+
+# --- Message Handlers ---
+def process_movie_request(message):
+    """Processes the movie title and sends movie details or shows options."""
+    try:
+        movie_name = message.text
+        movies = search_movies(movie_name)
+
+        if movies is None:
+            bot.send_message(
+                message.chat.id, "Movie search failed. Please try again later."
             )
             return
 
-        # Extract original file name and extension
-        original_file_name, original_file_ext = os.path.splitext(file_name)
-
-        # Show options for renaming or using the default name
-        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            telebot.types.InlineKeyboardButton("Default", callback_data="default"),
-            telebot.types.InlineKeyboardButton("Rename", callback_data="rename"),
-        )
-
-        bot.send_message(
-            message.chat.id,
-            f"File: {original_file_name}{original_file_ext}\n"
-            f"Size: {file_size_str(file_size)}\n"
-            f"Choose an option:",
-            reply_markup=markup,
-        )
-
-        # Store user data for later use
-        user_data[message.chat.id] = {
-            "url": url,
-            "file_name": file_name,
-            "file_size": file_size,
-        }
-
-    except Exception as e:
-        logger.error(f"Error in process_url_upload: {e}")
-        bot.send_message(
-            message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
-
-
-def process_rename(message, bot, app):  # Add bot and app as arguments
-    """Handles the file renaming."""
-    try:
-        new_file_name = message.text.strip()
-
-        # Get original file extension from user_data
-        original_file_ext = os.path.splitext(
-            user_data[message.chat.id]["file_name"]
-        )[1]
-
-        # Combine new file name with original extension
-        custom_file_name = f"{new_file_name}{original_file_ext}"
-
-        process_file_upload(message, custom_file_name, bot, app)  # Pass bot and app here
-
-    except Exception as e:
-        logger.error(f"Error in process_rename: {e}")
-        bot.send_message(
-            message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
-
-
-def process_file_upload(message, custom_file_name=None, bot=None, app=None):  # Add bot and app as arguments
-    """Downloads and uploads the file."""
-    try:
-        url = user_data[message.chat.id]["url"]
-        file_size = user_data[message.chat.id]["file_size"]
-        original_file_name = user_data[message.chat.id]["file_name"]
-
-        if custom_file_name is None:
-            file_name = original_file_name
-        else:
-            file_name = custom_file_name
-
-        # Download the file (progress bar handled within download_file)
-        downloaded_file = download_file(url, file_name, message, bot)  # Pass bot here
-
-        if downloaded_file:
-            try:
-                # Use Pyrogram to upload the file
-                with open(downloaded_file, "rb") as f:
-                    # Get the chat ID from the telebot message
-                    chat_id = message.chat.id
-
-                    # Use Pyrogram's send_document to upload
-                    app.send_document(chat_id, f, caption="Uploaded file")
-
-                # Remove the downloaded file
-                os.remove(downloaded_file)
-
-            except Exception as e:
-                logger.error(f"Error uploading the file to Telegram: {e}")
-                bot.send_message(
-                    message.chat.id, f"Error uploading the file to Telegram: {e}"
+        if len(movies) == 1:
+            movie_info = get_movie_details(movies[0]["Title"])
+            bot.send_message(message.chat.id, movie_info, parse_mode="Markdown")
+        elif len(movies) > 1:
+            markup = telebot.types.InlineKeyboardMarkup()
+            for movie in movies:
+                title = movie["Title"]
+                year = movie["Year"]
+                markup.add(
+                    telebot.types.InlineKeyboardButton(
+                        f"{title} ({year})", callback_data=title
+                    )
                 )
+            bot.send_message(
+                message.chat.id, "Select the correct movie:", reply_markup=markup
+            )
+        else:
+            bot.send_message(message.chat.id, "Movie not found.")
 
     except Exception as e:
-        logger.error(f"Error in process_file_upload: {e}")
+        logger.error(f"Error in process_movie_request: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-    )
-    
+        )
+
+
+def process_movie_rating_request(message):
+    """Processes the movie title and sends movie ratings."""
+    try:
+        movie_name = message.text
+        movie_ratings = get_movie_rating(movie_name)
+        bot.send_message(message.chat.id, movie_ratings)
+    except Exception as e:
+        logger.error(f"Error in process_movie_rating_request: {e}")
+        bot.send_message(
+            message.chat.id, "Oops! Something went wrong. Please try again later."
+        )
+
+
+# --- Pyrogram Handler for File Upload ---
+@app.on_message(filters.command("upload") & filters.private)
+async def upload_file(client, message):
+    try:
+        # Get file path or URL from the user
+        file_path_or_url = message.text.split(" ", 1)[1]
+
+        # Send a message to the user to indicate the upload is starting
+        await app.send_message(message.chat.id, "Starting file upload...")
+
+        await app.send_document(
+            chat_id=message.chat.id,
+            document=file_path_or_url,  # Or pass a file-like object
+            caption="Uploaded file",
+            progress=progress_callback,  # Optional progress callback function
+        )
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+        await app.send_message(message.chat.id, f"Error uploading file: {e}")
+
+async def progress_callback(current, total):
+    print(f"{current * 100 / total:.1f}%")
+
+# --- Start the Bots ---
+async def main():
+    """Starts both telebot and Pyrogram clients."""
+    await app.start()  # Start Pyrogram client
+    bot.infinity_polling()
+    await app.stop()  # Stop Pyrogram client when telebot finishes
+
+if __name__ == "__main__":
+    asyncio.run(main())
+            
