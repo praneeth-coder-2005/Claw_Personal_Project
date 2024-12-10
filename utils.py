@@ -5,6 +5,7 @@ import os
 import time
 
 import requests
+import telebot  # Import telebot here
 
 from config import OMDB_API_KEY  # Import from config.py
 
@@ -256,7 +257,7 @@ def process_rename(message, bot):  # Add bot as an argument
 
 
 def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as an argument
-    """Downloads and uploads the file."""
+    """Downloads the file and triggers the Pyrogram client to upload it."""
     try:
         url = user_data[message.chat.id]["url"]
         file_size = user_data[message.chat.id]["file_size"]
