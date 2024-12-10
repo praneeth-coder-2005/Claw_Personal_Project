@@ -86,20 +86,20 @@ def callback_query(call):
                 call.message.chat.id,
                 "Send me the URL of the file you want to upload:",
             )
-            bot.register_next_step_handler(call.message, lambda msg: process_url_upload(msg, bot))  # Pass bot to process_url_upload
+            bot.register_next_step_handler(call.message, lambda msg: process_url_upload(msg, bot, app))  # Pass bot and app to process_url_upload
         elif call.data == "rename":
             bot.answer_callback_query(call.id)
             message = call.message
             bot.send_message(
                 message.chat.id, "Enter a new file name (without extension):"
             )
-            bot.register_next_step_handler(message, lambda msg: process_rename(msg, bot))  # Pass bot to process_rename
+            bot.register_next_step_handler(message, lambda msg: process_rename(msg, bot, app))  # Pass bot and app to process_rename
         elif call.data == "default" or call.data == "cancel":
             bot.answer_callback_query(call.id)
             message = call.message
             process_file_upload(
-                message, custom_file_name=None, bot=bot
-            )  # Use default name if "default" is clicked, pass bot here as well
+                message, custom_file_name=None, bot=bot, app=app
+            )  # Use default name if "default" is clicked, pass bot and app here as well
         else:  # Handle movie selection callbacks
             bot.answer_callback_query(call.id)
             movie_name = call.data
@@ -176,11 +176,14 @@ async def upload_file(client, message):
             chat_id=message.chat.id,
             document=file_path_or_url,  # Or pass a file-like object
             caption="Uploaded file",
+            progress=progress_callback,  # Optional progress callback function
         )
     except Exception as e:
         print(f"Error uploading file: {e}")
         await app.send_message(message.chat.id, f"Error uploading file: {e}")
 
+async def progress_callback(current, total):
+    print(f"{current * 100 / total:.1f}%")
 
 # --- Start the Bots ---
 if __name__ == "__main__":
