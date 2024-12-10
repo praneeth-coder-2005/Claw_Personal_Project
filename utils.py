@@ -14,8 +14,12 @@ from config import OMDB_API_KEY  # Import from config.py
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
+# --- Global Variables ---
+user_data = {}  # To store user-specific data during file upload
 
 # --- Helper Functions ---
+
+
 def _make_omdb_api_request(url):
     """Makes a request to the OMDb API and handles errors."""
     try:
@@ -128,7 +132,9 @@ def download_file(url, file_name, message):
         response.raise_for_status()
 
         # Send initial message with progress bar
-        progress_message = bot.send_message(message.chat.id, "Downloading...")
+        progress_message = bot.send_message(
+            message.chat.id, f"Downloading: {file_name}\nProgress: 0.0%"
+        )
         user_data[message.chat.id]["progress_message_id"] = (
             progress_message.message_id
         )
@@ -159,6 +165,12 @@ def download_file(url, file_name, message):
                             else:
                                 raise e
 
+        # Final update to the progress bar
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=progress_message.message_id,
+            text=f"Downloaded: {file_name}\nProgress: 100.0%",
+        )
         return file_name
 
     except requests.exceptions.RequestException as e:
@@ -303,7 +315,7 @@ def process_file_upload(message, custom_file_name=None):
                         bot.send_chat_action(message.chat.id, "upload_document")
                         bot.send_document(
                             chat_id=message.chat.id,
-                            document=f,
+                            document=f,  # Use 'document' instead of 'file_id'
                             caption=f"Uploaded {file_name} ({file_size_str(file_size)})",
                         )
 
@@ -320,4 +332,5 @@ def process_file_upload(message, custom_file_name=None):
         logger.error(f"Error in process_file_upload: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-)
+        )
+        
