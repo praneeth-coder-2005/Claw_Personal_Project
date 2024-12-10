@@ -17,9 +17,8 @@ telebot.logger.setLevel(logging.DEBUG)
 # --- Global Variables ---
 user_data = {}  # To store user-specific data during file upload
 
+
 # --- Helper Functions ---
-
-
 def _make_omdb_api_request(url):
     """Makes a request to the OMDb API and handles errors."""
     try:
@@ -120,7 +119,7 @@ def get_file_size(url):
         return 0
 
 
-def download_file(url, file_name, message):
+def download_file(url, file_name, message, bot):  # Add bot as an argument
     """Downloads the file from the URL with a progress bar (in Telegram)."""
     file_size = get_file_size(url)
     if file_size == 0:
@@ -179,7 +178,7 @@ def download_file(url, file_name, message):
         return None
 
 
-def upload_large_file_to_telegram(file_name, message):
+def upload_large_file_to_telegram(file_name, message, bot):  # Add bot as an argument
     """Uploads large files to Telegram by splitting into smaller parts."""
     try:
         with open(file_name, "rb") as f:
@@ -223,7 +222,7 @@ def file_size_str(file_size):
         return f"{file_size / (1024 * 1024 * 1024):.2f} GB"
 
 
-def process_url_upload(message):
+def process_url_upload(message, bot):  # Add bot as an argument
     """Handles the URL upload request."""
     try:
         url = message.text.strip()
@@ -268,7 +267,7 @@ def process_url_upload(message):
         )
 
 
-def process_rename(message):
+def process_rename(message, bot):  # Add bot as an argument
     """Handles the file renaming."""
     try:
         new_file_name = message.text.strip()
@@ -281,7 +280,7 @@ def process_rename(message):
         # Combine new file name with original extension
         custom_file_name = f"{new_file_name}{original_file_ext}"
 
-        process_file_upload(message, custom_file_name)
+        process_file_upload(message, custom_file_name, bot)  # Pass bot here
 
     except Exception as e:
         logger.error(f"Error in process_rename: {e}")
@@ -290,7 +289,7 @@ def process_rename(message):
         )
 
 
-def process_file_upload(message, custom_file_name=None):
+def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as an argument
     """Downloads and uploads the file."""
     try:
         url = user_data[message.chat.id]["url"]
@@ -303,13 +302,13 @@ def process_file_upload(message, custom_file_name=None):
             file_name = custom_file_name
 
         # Download the file (progress bar handled within download_file)
-        downloaded_file = download_file(url, file_name, message)
+        downloaded_file = download_file(url, file_name, message, bot)  # Pass bot here
 
         if downloaded_file:
             try:
                 # Upload the file to Telegram (handle large files)
                 if file_size > 50 * 1024 * 1024:
-                    upload_large_file_to_telegram(downloaded_file, message)
+                    upload_large_file_to_telegram(downloaded_file, message, bot)  # Pass bot here
                 else:
                     with open(downloaded_file, "rb") as f:
                         bot.send_chat_action(message.chat.id, "upload_document")
