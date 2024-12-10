@@ -178,73 +178,24 @@ def download_file(url, file_name, message, bot):  # Add bot as an argument
         return None
 
 
-def upload_large_file_to_telegram(file_name, message, bot):  # Add bot as an argument
-    """Uploads large files to Telegram by splitting into smaller parts."""
+def upload_file_to_telegram(file_name, message, bot):
+    """Uploads the file to Telegram."""
     try:
         with open(file_name, "rb") as f:
             file_size = os.path.getsize(file_name)
 
-            # Send initial message
-            bot.send_message(message.chat.id, f"Uploading {file_name}...")
+            bot.send_chat_action(message.chat.id, "upload_document")
 
-            # Calculate part size based on 5% of the file size
-            part_size = int(file_size * 0.05)
-            
-            # Ensure part size is at least 5MB
-            part_size = max(part_size, 5 * 1024 * 1024)
-
-            parts = range(0, file_size, part_size)
-            total_parts = len(parts)
-
-            for i, part in enumerate(parts):
-                file_part = BytesIO(f.read(part_size))
-                bot.send_chat_action(message.chat.id, "upload_document")
-
-                try:
-                    # Send the file part with caption
-                    bot.send_document(
-                        message.chat.id,
-                        file_part,
-                        visible_file_name=f"{os.path.splitext(file_name)[0]}.part{i+1}{os.path.splitext(file_name)[1]}",  # Add part number to file name
-                        caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts}",
-                    )
-                    
-                except telebot.apihelper.ApiTelegramException as e:
-                    if e.result_json['error_code'] == 413:  # Request Entity Too Large
-                        # Handle the error, e.g., reduce part size and retry
-                        logger.error(f"Error uploading file part: {e}")
-                        bot.send_message(message.chat.id, f"Error uploading file part (too large): {e}")
-
-                        # Reduce part size (e.g., by half)
-                        part_size //= 2
-                        
-                        # Reset file pointer to the beginning of the current part
-                        f.seek(part)
-                        
-                        # Retry uploading with the smaller part size
-                        file_part = BytesIO(f.read(part_size))
-                        bot.send_document(
-                            message.chat.id,
-                            file_part,
-                            visible_file_name=f"{os.path.splitext(file_name)[0]}.part{i+1}{os.path.splitext(file_name)[1]}",
-                            caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts} (Retrying with smaller size)",
-                        )
-                    else:
-                        raise e  # Re-raise other Telegram API exceptions
-
-            # After all parts are uploaded, send the complete file
-            with open(file_name, "rb") as f_complete:
-                bot.send_chat_action(message.chat.id, "upload_document")
-                bot.send_document(
-                    message.chat.id,
-                    f_complete,
-                    visible_file_name=file_name,
-                    caption=f"Uploaded: {file_name} ({file_size_str(file_size)})",
-                )
-
+            # Send the file with caption
+            bot.send_document(
+                message.chat.id,
+                f,
+                visible_file_name=file_name,
+                caption=f"Uploaded: {file_name} ({file_size_str(file_size)})",
+            )
 
     except Exception as e:
-        logger.error(f"Error uploading large file to Telegram: {e}")
+        logger.error(f"Error uploading file to Telegram: {e}")
         bot.send_message(
             message.chat.id, f"Error uploading the file to Telegram: {e}"
         )
@@ -346,17 +297,7 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
 
         if downloaded_file:
             try:
-                # Upload the file to Telegram (handle large files)
-                if file_size > 50 * 1024 * 1024:
-                    upload_large_file_to_telegram(downloaded_file, message, bot)  # Pass bot here
-                else:
-                    with open(downloaded_file, "rb") as f:
-                        bot.send_chat_action(message.chat.id, "upload_document")
-                        bot.send_document(
-                            chat_id=message.chat.id,
-                            document=f,  # Use 'document' instead of 'file_id'
-                            caption=f"Uploaded {file_name} ({file_size_str(file_size)})",
-                        )
+                upload_file_to_telegram(downloaded_file, message, bot)
 
                 # Remove the downloaded file after uploading (only if upload was successful)
                 os.remove(downloaded_file)
@@ -371,5 +312,5 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
         logger.error(f"Error in process_file_upload: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
-        
+    )
+    
