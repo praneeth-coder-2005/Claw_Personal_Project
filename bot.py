@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 import logging
 
 # Enable logging
@@ -20,7 +20,7 @@ TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
 BLOGGER_EMAIL = "natureloverz2025@gmail.com"
 BLOGGER_PASSWORD = "#5213680099Ac"  # Make sure to handle special characters if any
 
-def update_code(update: telegram.Update, context: CallbackContext) -> None:
+def update_code(update, context):
     try:
         # Get command arguments (post_url, new_code)
         post_url = context.args[0]
@@ -84,16 +84,14 @@ def update_code(update: telegram.Update, context: CallbackContext) -> None:
     except Exception as e:
         update.message.reply_text(f"Error updating code: {e}")
 
-def start(update: telegram.Update, context: CallbackContext) -> None:
+def start(update, context):
     update.message.reply_text("Hello! I'm your Blogger code editor bot. "
                               "Use /update_code [post_url] [new_code] to update code.")
 
 def main():
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    # Make sure to set use_context=True to use the new context based callbacks
-    # Post version 12 this will no longer be necessary
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN)  # Removed use_context=True
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -112,4 +110,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-        
+            
