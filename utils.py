@@ -195,7 +195,7 @@ def file_size_str(file_size):
         return f"{file_size / (1024 * 1024 * 1024):.2f} GB"
 
 
-def process_url_upload(message, bot):  # Add bot as an argument
+def process_url_upload(message, bot, app):  # Add bot and app as arguments
     """Handles the URL upload request."""
     try:
         url = message.text.strip()
@@ -240,7 +240,7 @@ def process_url_upload(message, bot):  # Add bot as an argument
         )
 
 
-def process_rename(message, bot):  # Add bot as an argument
+def process_rename(message, bot, app):  # Add bot and app as arguments
     """Handles the file renaming."""
     try:
         new_file_name = message.text.strip()
@@ -253,7 +253,7 @@ def process_rename(message, bot):  # Add bot as an argument
         # Combine new file name with original extension
         custom_file_name = f"{new_file_name}{original_file_ext}"
 
-        process_file_upload(message, custom_file_name, bot)  # Pass bot here
+        process_file_upload(message, custom_file_name, bot, app)  # Pass bot and app here
 
     except Exception as e:
         logger.error(f"Error in process_rename: {e}")
@@ -262,8 +262,8 @@ def process_rename(message, bot):  # Add bot as an argument
         )
 
 
-def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as an argument
-    """Downloads the file and triggers the Pyrogram client to upload it."""
+def process_file_upload(message, custom_file_name=None, bot=None, app=None):  # Add bot and app as arguments
+    """Downloads and uploads the file."""
     try:
         url = user_data[message.chat.id]["url"]
         file_size = user_data[message.chat.id]["file_size"]
@@ -279,21 +279,26 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
 
         if downloaded_file:
             try:
-                # Instead of uploading here, send a command to the Pyrogram client
-                bot.send_message(message.chat.id, f"/upload {downloaded_file}")
+                # Use Pyrogram to upload the file
+                with open(downloaded_file, "rb") as f:
+                    # Get the chat ID from the telebot message
+                    chat_id = message.chat.id
+
+                    # Use Pyrogram's send_document to upload
+                    app.send_document(chat_id, f, caption="Uploaded file")
 
                 # Remove the downloaded file
                 os.remove(downloaded_file)
 
             except Exception as e:
-                logger.error(f"Error sending upload command: {e}")
+                logger.error(f"Error uploading the file to Telegram: {e}")
                 bot.send_message(
-                    message.chat.id, f"Error sending upload command: {e}"
+                    message.chat.id, f"Error uploading the file to Telegram: {e}"
                 )
 
     except Exception as e:
         logger.error(f"Error in process_file_upload: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
-        
+    )
+    
