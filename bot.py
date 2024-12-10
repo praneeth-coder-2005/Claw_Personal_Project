@@ -7,7 +7,7 @@ import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 
 # Telegram Bot Token (replace with your actual token)
-TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 
 # Blogger Credentials (replace with your actual credentials)
 BLOGGER_EMAIL = "your_blogger_email@example.com"
@@ -82,7 +82,7 @@ def start(update, context):
                               "Use /update_code [post_url] [new_code] to update code.")
 
 def main():
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN)  # Remove use_context=True 
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("update_code", update_code))
@@ -93,4 +93,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-            
+        
