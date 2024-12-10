@@ -181,9 +181,21 @@ def download_file(url, file_name, message, bot):  # Add bot as an argument
 def upload_file_to_telegram(file_name, message, bot):
     """Uploads the file to Telegram."""
     try:
-        with open(file_name, "rb") as f:
-            file_size = os.path.getsize(file_name)
+        # Get file size
+        file_size = os.path.getsize(file_name)
 
+        # Check if file size exceeds Telegram's limit (currently 2GB)
+        if file_size > 2 * 1024 * 1024 * 1024:
+            # If file is too large, notify the user and provide alternative options
+            bot.send_message(
+                message.chat.id,
+                f"Error: File is too large to upload to Telegram. "
+                f"The maximum allowed file size is 2GB. "
+                f"Please consider using a cloud storage service and sharing the link instead.",
+            )
+            return
+
+        with open(file_name, "rb") as f:
             bot.send_chat_action(message.chat.id, "upload_document")
 
             # Send the file with caption
@@ -313,4 +325,4 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
     )
-    
+        
