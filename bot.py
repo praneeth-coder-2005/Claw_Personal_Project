@@ -12,14 +12,20 @@ from utils import (
     process_rename,
     process_file_upload,
 )
-from config import BOT_TOKEN  # Import from config.py
+from config import BOT_TOKEN, API_ID, API_HASH  # Import from config.py
 
 # --- Logging ---
-logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # --- Bot Initialization ---
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# --- Pyrogram Client Initialization ---
+from pyrogram import Client, filters  # Import pyrogram here
+
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
 
 # --- Global Variables ---
 user_data = {}  # To store user-specific data during file upload
@@ -159,7 +165,27 @@ def process_movie_rating_request(message):
         )
 
 
-# --- Start the Bot ---
+# --- Pyrogram Handler for File Upload ---
+@app.on_message(filters.command("upload") & filters.private)
+async def upload_file(client, message):
+    try:
+        # Get file path or URL from the user
+        file_path_or_url = message.text.split(" ", 1)[1]
+
+        await app.send_document(
+            chat_id=message.chat.id,
+            document=file_path_or_url,  # Or pass a file-like object
+            caption="Uploaded file",
+        )
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+        await app.send_message(message.chat.id, f"Error uploading file: {e}")
+
+
+# --- Start the Bots ---
 if __name__ == "__main__":
+    import threading
+
+    threading.Thread(target=app.run).start()  # Start pyrogram client in a separate thread
     bot.infinity_polling()
-        
+            
