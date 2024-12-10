@@ -80,20 +80,20 @@ def callback_query(call):
                 call.message.chat.id,
                 "Send me the URL of the file you want to upload:",
             )
-            bot.register_next_step_handler(call.message, process_url_upload)
+            bot.register_next_step_handler(call.message, lambda msg: process_url_upload(msg, bot))  # Pass bot to process_url_upload
         elif call.data == "rename":
             bot.answer_callback_query(call.id)
             message = call.message
             bot.send_message(
                 message.chat.id, "Enter a new file name (without extension):"
             )
-            bot.register_next_step_handler(message, process_rename)
+            bot.register_next_step_handler(message, lambda msg: process_rename(msg, bot))  # Pass bot to process_rename
         elif call.data == "default" or call.data == "cancel":
             bot.answer_callback_query(call.id)
             message = call.message
             process_file_upload(
-                message, custom_file_name=None
-            )  # Use default name if "default" is clicked
+                message, custom_file_name=None, bot=bot
+            )  # Use default name if "default" is clicked, pass bot here as well
         else:  # Handle movie selection callbacks
             bot.answer_callback_query(call.id)
             movie_name = call.data
@@ -162,3 +162,4 @@ def process_movie_rating_request(message):
 # --- Start the Bot ---
 if __name__ == "__main__":
     bot.infinity_polling()
+        
