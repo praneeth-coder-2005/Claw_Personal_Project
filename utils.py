@@ -3,16 +3,14 @@ import datetime
 import logging
 import os
 import time
-from io import BytesIO
 
 import requests
-import telebot
 
 from config import OMDB_API_KEY  # Import from config.py
 
 # --- Logging ---
-logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # --- Global Variables ---
 user_data = {}  # To store user-specific data during file upload
@@ -178,41 +176,6 @@ def download_file(url, file_name, message, bot):  # Add bot as an argument
         return None
 
 
-def upload_file_to_telegram(file_name, message, bot):
-    """Uploads the file to Telegram."""
-    try:
-        # Get file size
-        file_size = os.path.getsize(file_name)
-
-        # Check if file size exceeds Telegram's limit (currently 2GB)
-        if file_size > 2 * 1024 * 1024 * 1024:
-            # If file is too large, notify the user and provide alternative options
-            bot.send_message(
-                message.chat.id,
-                f"Error: File is too large to upload to Telegram. "
-                f"The maximum allowed file size is 2GB. "
-                f"Please consider using a cloud storage service and sharing the link instead.",
-            )
-            return
-
-        with open(file_name, "rb") as f:
-            bot.send_chat_action(message.chat.id, "upload_document")
-
-            # Send the file with caption
-            bot.send_document(
-                message.chat.id,
-                f,
-                visible_file_name=file_name,
-                caption=f"Uploaded: {file_name} ({file_size_str(file_size)})",
-            )
-
-    except Exception as e:
-        logger.error(f"Error uploading file to Telegram: {e}")
-        bot.send_message(
-            message.chat.id, f"Error uploading the file to Telegram: {e}"
-        )
-
-
 def file_size_str(file_size):
     """Converts file size to human-readable string."""
     if file_size < 1024:
@@ -309,20 +272,21 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
 
         if downloaded_file:
             try:
-                upload_file_to_telegram(downloaded_file, message, bot)
+                # Instead of uploading here, send a command to the Pyrogram client
+                bot.send_message(message.chat.id, f"/upload {downloaded_file}")
 
-                # Remove the downloaded file after uploading (only if upload was successful)
+                # Remove the downloaded file 
                 os.remove(downloaded_file)
 
             except Exception as e:
-                logger.error(f"Error uploading the file to Telegram: {e}")
+                logger.error(f"Error sending upload command: {e}")
                 bot.send_message(
-                    message.chat.id, f"Error uploading the file to Telegram: {e}"
+                    message.chat.id, f"Error sending upload command: {e}"
                 )
 
     except Exception as e:
         logger.error(f"Error in process_file_upload: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-    )
+        )
         
