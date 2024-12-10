@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 
 # Telegram Bot Token (replace with your actual token)
 TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
@@ -20,7 +20,7 @@ def update_code(update, context):
         new_code = " ".join(context.args[1:])  # Join remaining args for code
 
         # Start the web driver (use appropriate driver for your browser)
-        driver = webdriver.Chrome()
+        driver = webdriver.Chrome()  # Or webdriver.Firefox(), etc.
         driver.get(post_url)  # Go directly to the post URL
 
         # Google Authentication (it should redirect to login if needed)
@@ -29,7 +29,7 @@ def update_code(update, context):
                 EC.presence_of_element_located((By.ID, "identifierId"))
             )
         except:  # If not found, assume already logged in
-            pass 
+            pass  
         else:
             email_field.send_keys(BLOGGER_EMAIL)
             driver.find_element(By.ID, "identifierNext").click()
@@ -41,17 +41,19 @@ def update_code(update, context):
             driver.find_element(By.ID, "passwordNext").click()
 
             # (If you have 2FA, handle it here)
-            # ...
+            # ... 
 
         # Switch to the iframe (if the editor is in an iframe)
         try:
-            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, "postingIframe")))
+            WebDriverWait(driver, 10).until(
+                EC.frame_to_be_available_and_switch_to_it((By.ID, "postingIframe"))
+            )
         except:
             pass  # If no iframe, continue
 
         # Locate the code block (adjust the selector if needed)
         code_block = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "pre code"))  
+            EC.presence_of_element_located((By.CSS_SELECTOR, "pre code")) 
         )
 
         # Clear existing code and enter new code
@@ -84,6 +86,8 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("update_code", update_code))
+
+    # Start the bot
     updater.start_polling()
     updater.idle()
 
