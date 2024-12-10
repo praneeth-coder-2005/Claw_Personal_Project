@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 # --- Configuration ---
 
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'  # Replace with your actual bot token
+BOT_TOKEN = 'YOUR_BOT_TOKEN'  # Replace with your actual bot token
 OMDB_API_KEY = "YOUR_OMDB_API_KEY"  # Replace with your actual OMDb API key
 
 # --- Logging ---
@@ -177,8 +177,8 @@ def download_file(url, file_name, message):
         return None
 
 
-def upload_large_file_to_telegram(file_name, message):  # FIXED: Removed file_id, file_part, file_total_parts
-    """Uploads large files to Telegram."""
+def upload_large_file_to_telegram(file_name, message):
+    """Uploads large files to Telegram using file chunking."""
     try:
         with open(file_name, 'rb') as f:
             file_size = os.path.getsize(file_name)
@@ -190,16 +190,22 @@ def upload_large_file_to_telegram(file_name, message):  # FIXED: Removed file_id
             parts = range(0, file_size, part_size)
             total_parts = len(parts)
 
+            # Use a unique file_id
+            file_id = f"{message.chat.id}_{time.time()}"  
+
             for i, part in enumerate(parts):
                 file_part = BytesIO(f.read(part_size))
                 bot.send_chat_action(message.chat.id, 'upload_document')
 
-                # Send the file part with caption
+                # Send the file part with caption and progress
                 bot.send_document(
                     message.chat.id,
                     file_part,
-                    visible_file_name=f"{os.path.splitext(file_name)[0]}.part{i+1}{os.path.splitext(file_name)[1]}",  # Add part number to file name
-                    caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts}"
+                    visible_file_name=file_name,  # Use original file name
+                    caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts}",
+                    file_id=file_id,  # Use the same file_id for all parts
+                    file_part=i,  # Part number
+                    file_total_parts=total_parts  # Total number of parts
                 )
 
     except Exception as e:
@@ -378,7 +384,7 @@ def process_rename(message):
         bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
 
-def process_file_upload(message, custom_file_name=None):
+def process_file_upload(message, custom_file_name=None):  # FIXED: Handle file upload errors
     """Downloads and uploads the file."""
     try:
         url = user_data[message.chat.id]['url']
@@ -394,21 +400,25 @@ def process_file_upload(message, custom_file_name=None):
         downloaded_file = download_file(url, file_name, message)
 
         if downloaded_file:
-            # Upload the file to Telegram (handle large files)
-            if file_size > 50 * 1024 * 1024:  # If file size is greater than 50MB
-                upload_large_file_to_telegram(downloaded_file, message)
-            else:
-                # Use regular upload for smaller files
-                with open(downloaded_file, 'rb') as f:
-                    bot.send_chat_action(message.chat.id, 'upload_document')
-                    bot.send_document(
-                        chat_id=message.chat.id,
-                        document=f,
-                        caption=f"Uploaded {file_name} ({file_size_str(file_size)})"
-                    )
+            try:
+        # Upload the file to Telegram (handle large files)
+                if file_size > 50 * 1024 * 1024:
+                    upload_large_file_to_telegram(downloaded_file, message)
+                else:
+                    with open(downloaded_file, 'rb') as f:
+                        bot.send_chat_action(message.chat.id, 'upload_document')
+                        bot.send_document(
+                            chat_id=message.chat.id,
+                            document=f,
+                            caption=f"Uploaded {file_name} ({file_size_str(file_size)})"
+                        )
 
-            # Remove the downloaded file after uploading
-            os.remove(downloaded_file)
+                # Remove the downloaded file after uploading (only if upload was successful)
+                os.remove(downloaded_file)
+
+            except Exception as e:
+                logger.error(f"Error uploading the file to Telegram: {e}")
+                bot.send_message(message.chat.id, f"Error uploading the file to Telegram: {e}")
 
     except Exception as e:
         logger.error(f"Error in process_file_upload: {e}")
@@ -419,5 +429,5 @@ def process_file_upload(message, custom_file_name=None):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
-        
+    
+    
