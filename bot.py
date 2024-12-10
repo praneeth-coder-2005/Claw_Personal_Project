@@ -5,13 +5,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters
+import logging
 
-# Telegram Bot Token (replace with your actual token)
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Telegram Bot Token
 TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
 
-# Blogger Credentials (replace with your actual credentials)
-BLOGGER_EMAIL = "your_blogger_email@example.com"
-BLOGGER_PASSWORD = "your_blogger_password"
+# Blogger Credentials
+BLOGGER_EMAIL = "natureloverz2025@gmail.com"
+BLOGGER_PASSWORD = "#5213680099Ac"  # Make sure to handle special characters if any
 
 def update_code(update, context):
     try:
@@ -82,13 +89,23 @@ def start(update, context):
                               "Use /update_code [post_url] [new_code] to update code.")
 
 def main():
-    updater = Updater(TOKEN)  # Remove use_context=True 
+    """Start the bot."""
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TOKEN)
+
+    # Get the dispatcher to register handlers
     dp = updater.dispatcher
+
+    # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("update_code", update_code))
 
-    # Start the bot
+    # Start the Bot
     updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 if __name__ == '__main__':
