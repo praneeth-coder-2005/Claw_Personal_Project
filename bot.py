@@ -1,198 +1,92 @@
-# bot.py
-import asyncio
-import logging
-import telebot
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+import telegram
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-from utils import (
-    get_current_time,
-    get_current_date,
-    get_movie_details,
-    get_movie_rating,
-    search_movies,
-    process_url_upload,
-    process_rename,
-    process_file_upload,
-)
-from config import BOT_TOKEN, API_ID, API_HASH  # Import from config.py
+# Telegram Bot Token (replace with your actual token)
+TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
 
-# --- Logging ---
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# Blogger Credentials (replace with your actual credentials)
+BLOGGER_EMAIL = "your_blogger_email@example.com"
+BLOGGER_PASSWORD = "your_blogger_password"
 
-# --- Bot Initialization ---
-bot = telebot.TeleBot(BOT_TOKEN)
-
-# --- Pyrogram Client Initialization ---
-from pyrogram import Client, filters  # Import pyrogram here
-
-app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
-
-# --- Global Variables ---
-user_data = {}  # To store user-specific data during file upload
-
-
-# --- Command Handlers ---
-@bot.message_handler(commands=["start", "help"])
-def send_welcome(message):
-    """Sends a welcome message with inline buttons."""
+def update_code(update, context):
     try:
-        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            telebot.types.InlineKeyboardButton("Time", callback_data="time"),
-            telebot.types.InlineKeyboardButton("Date", callback_data="date"),
-            telebot.types.InlineKeyboardButton("Movie Details", callback_data="movie_details"),
-            telebot.types.InlineKeyboardButton("Movie Ratings", callback_data="movie_ratings"),
-            telebot.types.InlineKeyboardButton("URL Upload", callback_data="url_upload"),
-        )
-        bot.reply_to(
-            message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup
-        )
+        # Get command arguments (post_url, new_code)
+        post_url = context.args[0]
+        new_code = " ".join(context.args[1:])  # Join remaining args for code
 
-    except Exception as e:
-        logger.error(f"Error in send_welcome: {e}")
-        bot.reply_to(
-            message, "Oops! Something went wrong. Please try again later."
-        )
+        # Start the web driver (use appropriate driver for your browser)
+        driver = webdriver.Chrome()
+        driver.get(post_url)  # Go directly to the post URL
 
-
-# --- Callback Query Handler ---
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    """Handles inline button callbacks."""
-    try:
-        if call.data == "time":
-            bot.answer_callback_query(
-                call.id, text=f"Current time: {get_current_time()}"
+        # Google Authentication (it should redirect to login if needed)
+        try:  # Try to find the email field (in case already logged in)
+            email_field = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.ID, "identifierId"))
             )
-        elif call.data == "date":
-            bot.answer_callback_query(
-                call.id, text=f"Today's date: {get_current_date()}"
-            )
-        elif call.data == "movie_details":
-            bot.answer_callback_query(call.id)
-            bot.send_message(
-                call.message.chat.id, "Send me a movie title to get details"
-            )
-            bot.register_next_step_handler(call.message, process_movie_request)
-        elif call.data == "movie_ratings":
-            bot.answer_callback_query(call.id)
-            bot.send_message(
-                call.message.chat.id, "Send me a movie title to get ratings"
-            )
-            bot.register_next_step_handler(call.message, process_movie_rating_request)
-        elif call.data == "url_upload":
-            bot.answer_callback_query(call.id)
-            bot.send_message(
-                call.message.chat.id,
-                "Send me the URL of the file you want to upload:",
-            )
-            bot.register_next_step_handler(call.message, lambda msg: process_url_upload(msg, bot, app))  # Pass bot and app to process_url_upload
-        elif call.data == "rename":
-            bot.answer_callback_query(call.id)
-            message = call.message
-            bot.send_message(
-                message.chat.id, "Enter a new file name (without extension):"
-            )
-            bot.register_next_step_handler(message, lambda msg: process_rename(msg, bot, app))  # Pass bot and app to process_rename
-        elif call.data == "default" or call.data == "cancel":
-            bot.answer_callback_query(call.id)
-            message = call.message
-            process_file_upload(
-                message, custom_file_name=None, bot=bot, app=app
-            )  # Use default name if "default" is clicked, pass bot and app here as well
-        else:  # Handle movie selection callbacks
-            bot.answer_callback_query(call.id)
-            movie_name = call.data
-            movie_info = get_movie_details(movie_name)
-            bot.send_message(call.message.chat.id, movie_info, parse_mode="Markdown")
-
-    except Exception as e:
-        logger.error(f"Error in callback_query: {e}")
-        bot.send_message(
-            call.message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
-
-
-# --- Message Handlers ---
-def process_movie_request(message):
-    """Processes the movie title and sends movie details or shows options."""
-    try:
-        movie_name = message.text
-        movies = search_movies(movie_name)
-
-        if movies is None:
-            bot.send_message(
-                message.chat.id, "Movie search failed. Please try again later."
-            )
-            return
-
-        if len(movies) == 1:
-            movie_info = get_movie_details(movies[0]["Title"])
-            bot.send_message(message.chat.id, movie_info, parse_mode="Markdown")
-        elif len(movies) > 1:
-            markup = telebot.types.InlineKeyboardMarkup()
-            for movie in movies:
-                title = movie["Title"]
-                year = movie["Year"]
-                markup.add(
-                    telebot.types.InlineKeyboardButton(
-                        f"{title} ({year})", callback_data=title
-                    )
-                )
-            bot.send_message(
-                message.chat.id, "Select the correct movie:", reply_markup=markup
-            )
+        except:  # If not found, assume already logged in
+            pass 
         else:
-            bot.send_message(message.chat.id, "Movie not found.")
+            email_field.send_keys(BLOGGER_EMAIL)
+            driver.find_element(By.ID, "identifierNext").click()
 
-    except Exception as e:
-        logger.error(f"Error in process_movie_request: {e}")
-        bot.send_message(
-            message.chat.id, "Oops! Something went wrong. Please try again later."
+            password_field = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "password"))
+            )
+            password_field.send_keys(BLOGGER_PASSWORD)
+            driver.find_element(By.ID, "passwordNext").click()
+
+            # (If you have 2FA, handle it here)
+            # ...
+
+        # Switch to the iframe (if the editor is in an iframe)
+        try:
+            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, "postingIframe")))
+        except:
+            pass  # If no iframe, continue
+
+        # Locate the code block (adjust the selector if needed)
+        code_block = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "pre code"))  
         )
 
+        # Clear existing code and enter new code
+        code_block.send_keys(Keys.CONTROL + "a")
+        code_block.send_keys(Keys.DELETE)
+        code_block.send_keys(new_code)
 
-def process_movie_rating_request(message):
-    """Processes the movie title and sends movie ratings."""
-    try:
-        movie_name = message.text
-        movie_ratings = get_movie_rating(movie_name)
-        bot.send_message(message.chat.id, movie_ratings)
+        # Switch back to the main content (if you switched to an iframe)
+        try:
+            driver.switch_to.default_content()
+        except:
+            pass
+
+        # Save changes (if needed - inspect and find the "Update" button)
+        # update_button = driver.find_element(...)
+        # update_button.click()
+
+        driver.quit()
+        update.message.reply_text("Code updated successfully!")
+
     except Exception as e:
-        logger.error(f"Error in process_movie_rating_request: {e}")
-        bot.send_message(
-            message.chat.id, "Oops! Something went wrong. Please try again later."
-        )
+        update.message.reply_text(f"Error updating code: {e}")
 
+def start(update, context):
+    update.message.reply_text("Hello! I'm your Blogger code editor bot. "
+                              "Use /update_code [post_url] [new_code] to update code.")
 
-# --- Pyrogram Handler for File Upload ---
-@app.on_message(filters.command("upload") & filters.private)
-async def upload_file(client, message):
-    try:
-        # Get file path or URL from the user
-        file_path_or_url = message.text.split(" ", 1)[1]
+def main():
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("update_code", update_code))
+    updater.start_polling()
+    updater.idle()
 
-        await app.send_document(
-            chat_id=message.chat.id,
-            document=file_path_or_url,  # Or pass a file-like object
-            caption="Uploaded file",
-            progress=progress_callback,  # Optional progress callback function
-        )
-    except Exception as e:
-        print(f"Error uploading file: {e}")
-        await app.send_message(message.chat.id, f"Error uploading file: {e}")
-
-async def progress_callback(current, total):
-    print(f"{current * 100 / total:.1f}%")
-
-# --- Start the Bots ---
-async def main():
-    """Starts both telebot and Pyrogram clients."""
-    await app.start()  # Start Pyrogram client
-    bot.infinity_polling()
-    await app.stop()  # Stop Pyrogram client when telebot finishes
-
-if __name__ == "__main__":
-    asyncio.run(main())
-        
+if __name__ == '__main__':
+    main()
+            
