@@ -146,19 +146,25 @@ def download_file(url, file_name, message, bot):  # Add bot as an argument
                     # Update progress in Telegram (every 10%)
                     if downloaded % (file_size // 10) == 0:
                         try:
+                            # Calculate progress percentage
+                            progress_percent = (downloaded / file_size) * 100
+
+                            # Update the progress message
                             bot.edit_message_text(
                                 chat_id=message.chat.id,
                                 message_id=progress_message.message_id,
-                                text=f"Downloading: {file_name}\nProgress: {downloaded / file_size * 100:.1f}%",
+                                text=f"Downloading: {file_name}\nProgress: {progress_percent:.1f}%",
                             )
+
                         except telebot.apihelper.ApiException as e:
                             if "retry_after" in e.result_json:
                                 time.sleep(e.result_json["retry_after"])
+
                                 # Retry the update
                                 bot.edit_message_text(
                                     chat_id=message.chat.id,
                                     message_id=progress_message.message_id,
-                                    text=f"Downloading: {file_name}\nProgress: {downloaded / file_size * 100:.1f}%",
+                                    text=f"Downloading: {file_name}\nProgress: {progress_percent:.1f}%",
                                 )
                             else:
                                 raise e
@@ -276,7 +282,7 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
                 # Instead of uploading here, send a command to the Pyrogram client
                 bot.send_message(message.chat.id, f"/upload {downloaded_file}")
 
-                # Remove the downloaded file 
+                # Remove the downloaded file
                 os.remove(downloaded_file)
 
             except Exception as e:
