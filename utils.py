@@ -1,3 +1,4 @@
+# utils.py
 import datetime
 import logging
 import os
@@ -231,6 +232,17 @@ def upload_large_file_to_telegram(file_name, message, bot):  # Add bot as an arg
                     else:
                         raise e  # Re-raise other Telegram API exceptions
 
+            # After all parts are uploaded, send the complete file
+            with open(file_name, "rb") as f_complete:
+                bot.send_chat_action(message.chat.id, "upload_document")
+                bot.send_document(
+                    message.chat.id,
+                    f_complete,
+                    visible_file_name=file_name,
+                    caption=f"Uploaded: {file_name} ({file_size_str(file_size)})",
+                )
+
+
     except Exception as e:
         logger.error(f"Error uploading large file to Telegram: {e}")
         bot.send_message(
@@ -359,5 +371,5 @@ def process_file_upload(message, custom_file_name=None, bot=None):  # Add bot as
         logger.error(f"Error in process_file_upload: {e}")
         bot.send_message(
             message.chat.id, "Oops! Something went wrong. Please try again later."
-    )
+        )
         
