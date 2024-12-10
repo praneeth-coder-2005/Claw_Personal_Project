@@ -91,16 +91,15 @@ def start(update: telegram.Update, context: CallbackContext) -> None:
 
 def main():
     """Start the bot."""
-    # Create the Updater and pass it your bot's token and update queue.
-    update_queue = Queue()
-    updater = Updater(TOKEN, update_queue=update_queue)  # Added update_queue
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TOKEN)
 
     # Get the dispatcher to register handlers
-    dp = updater.dispatcher
+    dispatcher = updater.dispatcher  # Use 'dispatcher' instead of 'dp'
 
     # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("update_code", update_code))
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("update_code", update_code))
 
     # Start the Bot
     updater.start_polling()
