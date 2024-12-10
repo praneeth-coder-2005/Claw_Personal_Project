@@ -6,11 +6,10 @@ from io import BytesIO
 
 import requests
 import telebot
-from tqdm import tqdm
 
 # --- Configuration ---
 
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'  # Replace with your actual bot token
+BOT_TOKEN = 'YOUR_BOT_TOKEN'  # Replace with your actual bot token
 OMDB_API_KEY = "YOUR_OMDB_API_KEY"  # Replace with your actual OMDb API key
 
 # --- Logging ---
@@ -145,7 +144,7 @@ def get_file_size(url):
 
 
 def download_file(url, file_name, message):
-    """Downloads the file from the URL with a progress bar."""
+    """Downloads the file from the URL with a progress bar (in Telegram)."""
     file_size = get_file_size(url)
     if file_size == 0:
         bot.send_message(message.chat.id, "Could not determine file size.")
@@ -155,19 +154,35 @@ def download_file(url, file_name, message):
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
-        # Use tqdm for progress bar (without Telegram updates)
-        with open(file_name, 'wb') as f, tqdm(
-                desc=f"Downloading {file_name}",
-                total=file_size,
-                unit='B',
-                unit_scale=True,
-                unit_divisor=1024,
-                miniters=1,
-        ) as progress_bar:
+        # Send initial message with progress bar
+        progress_message = bot.send_message(message.chat.id, "Downloading...")
+        user_data[message.chat.id]['progress_message_id'] = progress_message.message_id
+
+        with open(file_name, 'wb') as f:
+            downloaded = 0
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-                    progress_bar.update(len(chunk))
+                    downloaded += len(chunk)
+                    # Update progress in Telegram (every 10%)
+                    if downloaded % (file_size // 10) == 0:
+                        try:
+                            bot.edit_message_text(
+                                chat_id=message.chat.id,
+                                message_id=progress_message.message_id,
+                                text=f"Downloading: {file_name}\nProgress: {downloaded / file_size * 100:.1f}%"
+                            )
+                        except telebot.apihelper.ApiException as e:
+                            if 'retry_after' in e.result_json:
+                                time.sleep(e.result_json['retry_after'])
+                                # Retry the update
+                                bot.edit_message_text(
+                                    chat_id=message.chat.id,
+                                    message_id=progress_message.message_id,
+                                    text=f"Downloading: {file_name}\nProgress: {downloaded / file_size * 100:.1f}%"
+                                )
+                            else:
+                                raise e
 
         return file_name
 
@@ -178,7 +193,7 @@ def download_file(url, file_name, message):
 
 
 def upload_large_file_to_telegram(file_name, message):
-    """Uploads large files to Telegram using file chunking."""
+    """Uploads large files to Telegram by splitting into smaller parts."""
     try:
         with open(file_name, 'rb') as f:
             file_size = os.path.getsize(file_name)
@@ -190,22 +205,16 @@ def upload_large_file_to_telegram(file_name, message):
             parts = range(0, file_size, part_size)
             total_parts = len(parts)
 
-            # Use a unique file_id
-            file_id = f"{message.chat.id}_{time.time()}"  
-
             for i, part in enumerate(parts):
                 file_part = BytesIO(f.read(part_size))
                 bot.send_chat_action(message.chat.id, 'upload_document')
 
-                # Send the file part with caption and progress
+                # Send the file part with caption
                 bot.send_document(
                     message.chat.id,
                     file_part,
-                    visible_file_name=file_name,  # Use original file name
-                    caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts}",
-                    file_id=file_id,  # Use the same file_id for all parts
-                    file_part=i,  # Part number
-                    file_total_parts=total_parts  # Total number of parts
+                    visible_file_name=f"{os.path.splitext(file_name)[0]}.part{i+1}{os.path.splitext(file_name)[1]}",  # Add part number to file name
+                    caption=f"Uploading: {file_name}\nPart {i+1}/{total_parts}"
                 )
 
     except Exception as e:
@@ -401,7 +410,7 @@ def process_file_upload(message, custom_file_name=None):  # FIXED: Handle file u
 
         if downloaded_file:
             try:
-        # Upload the file to Telegram (handle large files)
+                # Upload the file to Telegram (handle large files)
                 if file_size > 50 * 1024 * 1024:
                     upload_large_file_to_telegram(downloaded_file, message)
                 else:
@@ -429,5 +438,5 @@ def process_file_upload(message, custom_file_name=None):  # FIXED: Handle file u
 
 if __name__ == '__main__':
     bot.infinity_polling()
-    
-    
+        
+        
