@@ -4,8 +4,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
 import logging
+from queue import Queue
 
 # Enable logging
 logging.basicConfig(
@@ -20,7 +21,7 @@ TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
 BLOGGER_EMAIL = "natureloverz2025@gmail.com"
 BLOGGER_PASSWORD = "#5213680099Ac"  # Make sure to handle special characters if any
 
-def update_code(update, context):
+def update_code(update: telegram.Update, context: CallbackContext) -> None:
     try:
         # Get command arguments (post_url, new_code)
         post_url = context.args[0]
@@ -84,14 +85,15 @@ def update_code(update, context):
     except Exception as e:
         update.message.reply_text(f"Error updating code: {e}")
 
-def start(update, context):
+def start(update: telegram.Update, context: CallbackContext) -> None:
     update.message.reply_text("Hello! I'm your Blogger code editor bot. "
                               "Use /update_code [post_url] [new_code] to update code.")
 
 def main():
     """Start the bot."""
-    # Create the Updater and pass it your bot's token.
-    updater = Updater(TOKEN)  # Removed use_context=True
+    # Create the Updater and pass it your bot's token and update queue.
+    update_queue = Queue()
+    updater = Updater(TOKEN, update_queue=update_queue)  # Added update_queue
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -110,4 +112,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-            
+        
