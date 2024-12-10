@@ -7,7 +7,7 @@ import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 
 # Telegram Bot Token (replace with your actual token)
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+TOKEN = "7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk"
 
 # Blogger Credentials (replace with your actual credentials)
 BLOGGER_EMAIL = "your_blogger_email@example.com"
