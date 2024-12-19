@@ -68,7 +68,7 @@ def update_post_template(template, movie_details, poster_url, download_links):
         release_date=movie_details.get('release_date', 'Unknown'),
         rating=movie_details.get('vote_average', 'Unknown'),
         genre=', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
-        runtime=f"{movie_details.get('runtime', 'Unknown')} minutes",
+        runtime=f"{movie_details.get('runtime', 'Unknown')} minutes" if movie_details.get('runtime') else 'Unknown',
         synopsis=movie_details.get('overview', 'No Synopsis Available'),
         poster_url=poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster",
         download_links=formatted_download_links
