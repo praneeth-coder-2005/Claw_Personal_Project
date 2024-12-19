@@ -224,7 +224,7 @@ def main() -> None:
     """Start the bot."""
     update_queue = queue.Queue()
     updater = Updater(BOT_TOKEN, update_queue=update_queue)
-    dp = updater.dispatcher # Corrected this line
+    dp = updater.bot.dispatcher # Corrected this line
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("list", list_handler))
