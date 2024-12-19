@@ -123,9 +123,9 @@ def callback_query(call):
             movie_info, poster_url = get_movie_details(movie_id)
 
             if poster_url:
-                bot.send_photo(call.message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+                bot.send_photo(call.message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown')
             else:
-                bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+                bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
 
     except Exception as e:
         logger.error(f"Error in callback_query: {e}")
@@ -146,9 +146,9 @@ def process_movie_request(message):
             movie_id = movies[0]['id']  # Use 'id' from TMDb results
             movie_info, poster_url = get_movie_details(movie_id)
             if poster_url:
-               bot.send_photo(message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+               bot.send_photo(message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown')
             else:
-                bot.send_message(message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+                bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
 
         elif len(movies) > 1:
             markup = telebot.types.InlineKeyboardMarkup()
