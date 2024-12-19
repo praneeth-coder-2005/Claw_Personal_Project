@@ -6,8 +6,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     CallbackContext,
+    filters
 )
-from telegram.ext import filters as Filters
 from config import BOT_TOKEN
 from post_template import POST_TEMPLATE
 from utils import (
@@ -19,9 +19,7 @@ from utils import (
     update_post_template,
     create_post_list_keyboard
 )
-import queue
-from telegram import Bot
-from telegram.ext import Dispatcher
+
 
 # Enable logging
 logging.basicConfig(
@@ -224,26 +222,23 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
 
 def main() -> None:
     """Start the bot."""
-    update_queue = queue.Queue()
-    bot = Bot(BOT_TOKEN)
-    updater = Updater(bot=bot, update_queue=update_queue)
-    dispatcher = Dispatcher(bot, update_queue) # Correct way to get dispatcher
-    
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("list", list_handler))
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("list", list_handler))
     
-    dispatcher.add_handler(CallbackQueryHandler(create_post_handler, pattern='create_post'))
-    dispatcher.add_handler(CallbackQueryHandler(tmdb_id_handler, pattern='tmdb_id'))
-    dispatcher.add_handler(CallbackQueryHandler(poster_link_handler, pattern='poster_link'))
-    dispatcher.add_handler(CallbackQueryHandler(add_download_link_handler, pattern='add_download_link'))
-    dispatcher.add_handler(CallbackQueryHandler(process_tmdb_selection, pattern='tmdb_select_'))
-    dispatcher.add_handler(CallbackQueryHandler(download_done, pattern='download_done'))
-    dispatcher.add_handler(CallbackQueryHandler(done_handler, pattern='done'))
-    dispatcher.add_handler(CallbackQueryHandler(edit_post_handler, pattern='edit_post_'))
+    dp.add_handler(CallbackQueryHandler(create_post_handler, pattern='create_post'))
+    dp.add_handler(CallbackQueryHandler(tmdb_id_handler, pattern='tmdb_id'))
+    dp.add_handler(CallbackQueryHandler(poster_link_handler, pattern='poster_link'))
+    dp.add_handler(CallbackQueryHandler(add_download_link_handler, pattern='add_download_link'))
+    dp.add_handler(CallbackQueryHandler(process_tmdb_selection, pattern='tmdb_select_'))
+    dp.add_handler(CallbackQueryHandler(download_done, pattern='download_done'))
+    dp.add_handler(CallbackQueryHandler(done_handler, pattern='done'))
+    dp.add_handler(CallbackQueryHandler(edit_post_handler, pattern='edit_post_'))
     
     #Handle normal text messages
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, 
+    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, 
         lambda update, context: (
            process_tmdb_query(update, context) if context.user_data.get('stage') == 'waiting_tmdb_query' else
            process_poster_link(update, context) if context.user_data.get('stage') == 'waiting_poster_link' else
@@ -252,7 +247,7 @@ def main() -> None:
            process_post_title(update,context) if context.user_data.get('stage') == 'waiting_post_title' else None
     )
     ))
-    
+
     updater.start_polling()
     updater.idle()
 
