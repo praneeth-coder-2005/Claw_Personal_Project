@@ -229,11 +229,15 @@ def process_post_title(message):
       temp_post_data.pop(message.chat.id, None)
       set_state(message.chat.id, None)
 
-      #Removed parse_mode and send normal HTML code
-      bot.send_message(message.chat.id, f"Your post '{post_title}' is created!\n\n"
-                      "```html\n"
-                      f"{updated_template}\n"
-                      "```")
+      # Split message if too long
+      message_parts = split_message(f"Your post '{post_title}' is created!\n\n"
+                                  "```html\n"
+                                  f"{updated_template}\n"
+                                  "```", 4000)
+      for part in message_parts:
+        bot.send_message(message.chat.id, part)
+
+
     else:
         bot.send_message(message.chat.id, "Movie details not found. Please select a movie using TMDb ID first.")
 
@@ -278,6 +282,15 @@ def edit_post_handler(call):
           chat_id=call.message.chat.id,
           message_id=call.message.message_id
       )
+
+def split_message(message, max_length):
+    """Splits a message into parts if it exceeds max_length."""
+    parts = []
+    while len(message) > max_length:
+        parts.append(message[:max_length])
+        message = message[max_length:]
+    parts.append(message)
+    return parts
 
 
 def main():
