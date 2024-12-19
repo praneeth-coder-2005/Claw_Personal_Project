@@ -1,170 +1,254 @@
-import datetime
 import logging
-import requests
-import telebot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    Filters,
+    CallbackContext,
+)
+from config import BOT_TOKEN
+from post_template import POST_TEMPLATE
+from utils import (
+    search_movie_tmdb,
+    fetch_movie_details_tmdb,
+    create_post_menu_keyboard,
+    create_download_link_keyboard,
+    format_download_links,
+    update_post_template,
+    create_post_list_keyboard
+)
 
-# --- Configuration ---
-BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'  # Replace with your actual bot token
-TMDB_API_KEY = "bb5f40c5be4b24660cbdc20c2409835e"  # Replace with your actual TMDb API key
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# --- Logging ---
-logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG)
+# Store post data
+posts = {}
 
-# --- Bot Initialization ---
-bot = telebot.TeleBot(BOT_TOKEN)
+#Store Temp Post Data
+temp_post_data = {}
 
-# --- Helper Functions ---
-def _make_tmdb_api_request(url):
-    """Makes a request to the TMDb API and handles errors."""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-        data = response.json()
-        return data
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error making TMDb API request: {e}")
-        return None
 
-def get_movie_details(movie_id):
-    """Fetches movie details from TMDb API using the movie ID and also returns the image URL."""
-    details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-    details_data = _make_tmdb_api_request(details_url)
+def start(update: Update, context: CallbackContext) -> None:
+    """Sends the welcome message and options."""
+    keyboard = [
+        [InlineKeyboardButton("Create Post", callback_data="create_post")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("Welcome! What would you like to do?", reply_markup=reply_markup)
 
-    if details_data:
-        try:
-            title = details_data.get('title', 'N/A')
-            release_date = details_data.get('release_date', 'N/A')
-            year = release_date[:4] if release_date != 'N/A' else 'N/A'
-            overview = details_data.get('overview', 'N/A')
-            genres = ", ".join([genre['name'] for genre in details_data.get('genres', [])]) or "N/A"
-            poster_path = details_data.get('poster_path')
-            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None
+def create_post_handler(update: Update, context: CallbackContext) -> None:
+    """Handles the create post option."""
+    query = update.callback_query
+    query.answer()  # Acknowledge the callback
+    query.edit_message_text(
+        text="Let's start creating your movie post. What details you need to update?",
+        reply_markup=create_post_menu_keyboard()
+    )
 
-            vote_average = details_data.get('vote_average', 'N/A')
-            vote_count = details_data.get('vote_count', 'N/A')
-            runtime = details_data.get('runtime', 'N/A')
-            tagline = details_data.get('tagline', 'N/A')
-            budget = details_data.get('budget', 'N/A')
-            revenue = details_data.get('revenue', 'N/A')
+def tmdb_id_handler(update: Update, context: CallbackContext) -> None:
+    """Handles the TMDb ID input request."""
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text("Please enter the movie name to search on TMDb:")
+    context.user_data['stage'] = "waiting_tmdb_query"
 
-            movie_info = f"""
-            🎬 *{title}* ({year})
-
-            **Tagline:** {tagline}
-            **Overview:** {overview}
-            **Genres:** {genres}
-            **Release Date:** {release_date}
-            **Runtime:** {runtime} minutes
-            **Budget:** ${budget:,}
-            **Revenue:** ${revenue:,}
-            **Vote Average:** {vote_average} ({vote_count} votes)
-            
-            **Poster:** {poster_url if poster_url else "N/A"}
-
-            **TMDb ID:** [{movie_id}](https://www.themoviedb.org/movie/{movie_id}) ( {movie_id} )
-            """
-            return movie_info, poster_url
-        except Exception as e:
-            logger.error(f"Error formatting movie details: {e}")
-            return "Error formatting movie details.", None
+def process_tmdb_query(update: Update, context: CallbackContext) -> None:
+    """Process the TMDb query."""
+    movie_name = update.message.text
+    context.user_data['movie_name'] = movie_name
+    movies = search_movie_tmdb(movie_name)
+    if movies:
+        keyboard = [
+            [InlineKeyboardButton(movie['title'], callback_data=f"tmdb_select_{movie['id']}")] for movie in movies
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text("Please select the movie from the list:", reply_markup=reply_markup)
     else:
-        return "Error fetching movie details.", None
-
-def search_movies(movie_name):
-    """Searches for movies with similar names using TMDb API."""
-    search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
-    search_data = _make_tmdb_api_request(search_url)
-
-    if search_data and search_data.get('results'):
-        return search_data['results']
+       update.message.reply_text("No movies found with that name. Please try again.")
+       
+def process_tmdb_selection(update: Update, context: CallbackContext) -> None:
+    """Handles the TMDb movie selection and stores the movie ID and details."""
+    query = update.callback_query
+    query.answer()
+    movie_id = query.data.split('_')[-1]
+    movie_details = fetch_movie_details_tmdb(movie_id)
+    
+    if movie_details:
+      context.user_data['tmdb_id'] = movie_id
+      context.user_data['movie_details'] = movie_details
+      context.user_data['poster_url'] = f"https://image.tmdb.org/t/p/w500{movie_details.get('poster_path', '')}"
+      query.edit_message_text(
+        text=f"Selected movie: {movie_details.get('title')}. Moving back to create post options.",
+        reply_markup=create_post_menu_keyboard()
+      )
     else:
-        return []
+       query.edit_message_text("Failed to fetch movie details. Please try again.")
 
-def get_current_time():
-    """Returns the current time as a formatted string."""
-    return datetime.datetime.now().strftime("%H:%M:%S")
 
-def get_current_date():
-    """Returns the current date as a formatted string."""
-    return datetime.datetime.now().strftime("%Y-%m-%d")
-
-# --- Command Handlers ---
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    """Sends a welcome message with inline buttons."""
-    try:
-        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            telebot.types.InlineKeyboardButton('Time', callback_data='time'),
-            telebot.types.InlineKeyboardButton('Date', callback_data='date'),
-            telebot.types.InlineKeyboardButton('Movie Details', callback_data='movie_details')
+def poster_link_handler(update: Update, context: CallbackContext) -> None:
+    """Handles the poster link input request."""
+    query = update.callback_query
+    query.answer()
+    if 'poster_url' in context.user_data:
+        query.edit_message_text(
+            text=f"Poster from TMDB is taken. If you want to change provide the link.",
+            reply_markup=create_post_menu_keyboard()
         )
-        bot.reply_to(message, "Hello! I'm a helpful bot. Choose an option:", reply_markup=markup)
+        context.user_data['stage'] = "waiting_poster_link"
+    else:
+        query.edit_message_text("Please enter the poster link:")
+        context.user_data['stage'] = "waiting_poster_link"
 
-    except Exception as e:
-        logger.error(f"Error in send_welcome: {e}")
-        bot.reply_to(message, "Oops! Something went wrong. Please try again later.")
+def process_poster_link(update: Update, context: CallbackContext) -> None:
+    """Process the poster link."""
+    poster_link = update.message.text
+    context.user_data['poster_url'] = poster_link
+    update.message.reply_text(
+        text=f"Poster link is saved. Going back to Create Post options.",
+        reply_markup=create_post_menu_keyboard()
+    )
 
-# --- Callback Query Handler ---
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    """Handles inline button callbacks."""
-    try:
-        if call.data == "time":
-            bot.answer_callback_query(call.id, text=f"Current time: {get_current_time()}")
-        elif call.data == "date":
-            bot.answer_callback_query(call.id, text=f"Today's date: {get_current_date()}")
-        elif call.data == "movie_details":
-            bot.answer_callback_query(call.id)
-            bot.send_message(call.message.chat.id, "Send me a movie title to get details")
-            bot.register_next_step_handler(call.message, process_movie_request)
-        else:  # Handle movie selection callbacks
-            bot.answer_callback_query(call.id)
-            movie_id = call.data  # Use the TMDb ID
-            movie_info, poster_url = get_movie_details(movie_id)
 
-            if poster_url:
-                bot.send_photo(call.message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown')
-            else:
-                bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
+def add_download_link_handler(update: Update, context: CallbackContext) -> None:
+    """Handles the request to add download links."""
+    query = update.callback_query
+    query.answer()
+    context.user_data['download_links'] = context.user_data.get('download_links', {})
+    query.edit_message_text("Please enter the title for the download link:")
+    context.user_data['stage'] = "waiting_download_title"
 
-    except Exception as e:
-        logger.error(f"Error in callback_query: {e}")
-        bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
 
-# --- Message Handlers ---
-def process_movie_request(message):
-    """Processes the movie title and sends movie details or shows options."""
-    try:
-        movie_name = message.text
-        movies = search_movies(movie_name)
+def process_download_title(update: Update, context: CallbackContext) -> None:
+    """Processes the download link title."""
+    title = update.message.text
+    context.user_data['current_download_title'] = title
+    update.message.reply_text("Please enter the download link URL:")
+    context.user_data['stage'] = "waiting_download_link"
 
-        if not movies:
-            bot.send_message(message.chat.id, "Movie not found. Please try a different title.")
-            return
+def process_download_link(update: Update, context: CallbackContext) -> None:
+    """Processes the download link URL."""
+    url = update.message.text
+    title = context.user_data.get('current_download_title', 'Unknown')
+    download_links = context.user_data.get('download_links', {})
+    download_links[title] = url
+    context.user_data['download_links'] = download_links
+    update.message.reply_text(
+        text="Download link added. What do you want to do next?",
+        reply_markup = create_download_link_keyboard()
+    )
+    context.user_data['stage'] = None
 
-        if len(movies) == 1:
-            movie_id = movies[0]['id']  # Use 'id' from TMDb results
-            movie_info, poster_url = get_movie_details(movie_id)
-            if poster_url:
-               bot.send_photo(message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown')
-            else:
-                bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
+def download_done(update: Update, context: CallbackContext) -> None:
+    """Process the download link."""
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(
+         text="All download links are saved. Going back to Create Post options.",
+         reply_markup=create_post_menu_keyboard()
+    )
 
-        elif len(movies) > 1:
-            markup = telebot.types.InlineKeyboardMarkup()
-            for movie in movies:
-                title = movie['title']
-                year = movie['release_date'][:4] if movie.get('release_date') else 'N/A'
-                movie_id = movie['id']
-                markup.add(telebot.types.InlineKeyboardButton(f"{title} ({year})", callback_data=str(movie_id)))
-            bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
+def done_handler(update: Update, context: CallbackContext) -> None:
+    """Handles the 'Done' button click, finalizes and displays the code."""
+    query = update.callback_query
+    query.answer()
 
-    except Exception as e:
-        logger.error(f"Error in process_movie_request: {e}")
-        bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
+    if 'movie_details' not in context.user_data:
+      query.edit_message_text("Movie details is not selected. Please select from TMDb ID.")
+      return
 
-# --- Start the Bot ---
-if __name__ == '__main__':
-    bot.infinity_polling()
+    query.edit_message_text("Please enter the post title for remember.")
+    context.user_data['stage'] = 'waiting_post_title'
+
+def process_post_title(update: Update, context: CallbackContext) -> None:
+    """Process the post title and generate code."""
+    post_title = update.message.text
+    movie_details = context.user_data.get('movie_details')
+    poster_url = context.user_data.get('poster_url', None)
+    download_links = context.user_data.get('download_links', {})
+    
+    updated_template = update_post_template(
+        POST_TEMPLATE, movie_details, poster_url, download_links
+    )
+    
+    # Store post data for edit
+    post_id = len(posts) + 1
+    posts[post_id] = {
+      'title': post_title,
+      'code': updated_template
+    }
+    
+    context.user_data.clear()
+
+    update.message.reply_text(f"Your post '{post_title}' is created!\n\n"
+    "```html\n"
+    f"{updated_template}\n"
+    "```", parse_mode='MarkdownV2')
+    
+def list_handler(update: Update, context: CallbackContext) -> None:
+  """List saved post title."""
+  if posts:
+    update.message.reply_text("Here is list of post, Which post you want to edit?", reply_markup=create_post_list_keyboard(posts))
+  else:
+    update.message.reply_text("No posts available right now. Please create a post first.")
+
+def edit_post_handler(update: Update, context: CallbackContext) -> None:
+  """Edit saved posts."""
+  query = update.callback_query
+  query.answer()
+  post_id = int(query.data.split('_')[-1])
+  post_data = posts.get(post_id)
+
+  if post_data:
+    context.user_data['edit_post_id'] = post_id
+    
+    #Re-initialize the context data to edit the post again.
+    temp_post_data['movie_details'] = None
+    temp_post_data['poster_url'] = None
+    temp_post_data['download_links'] = {}
+    
+    query.edit_message_text(
+      text=f"Edit the post: {post_data['title']}. What details you need to update?",
+      reply_markup=create_post_menu_keyboard()
+    )
+  else:
+    query.edit_message_text("Post not found")
+
+
+def main() -> None:
+    """Start the bot."""
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("list", list_handler))
+    
+    dp.add_handler(CallbackQueryHandler(create_post_handler, pattern='create_post'))
+    dp.add_handler(CallbackQueryHandler(tmdb_id_handler, pattern='tmdb_id'))
+    dp.add_handler(CallbackQueryHandler(poster_link_handler, pattern='poster_link'))
+    dp.add_handler(CallbackQueryHandler(add_download_link_handler, pattern='add_download_link'))
+    dp.add_handler(CallbackQueryHandler(process_tmdb_selection, pattern='tmdb_select_'))
+    dp.add_handler(CallbackQueryHandler(download_done, pattern='download_done'))
+    dp.add_handler(CallbackQueryHandler(done_handler, pattern='done'))
+    dp.add_handler(CallbackQueryHandler(edit_post_handler, pattern='edit_post_'))
+    
+    #Handle normal text messages
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, 
+        lambda update, context: (
+           process_tmdb_query(update, context) if context.user_data.get('stage') == 'waiting_tmdb_query' else
+           process_poster_link(update, context) if context.user_data.get('stage') == 'waiting_poster_link' else
+           process_download_title(update, context) if context.user_data.get('stage') == 'waiting_download_title' else
+           process_download_link(update, context) if context.user_data.get('stage') == 'waiting_download_link' else
+           process_post_title(update,context) if context.user_data.get('stage') == 'waiting_post_title' else None
+    )
+    ))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
