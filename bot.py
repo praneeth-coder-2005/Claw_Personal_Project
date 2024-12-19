@@ -20,6 +20,7 @@ from utils import (
     create_post_list_keyboard
 )
 import queue
+from telegram import Bot
 
 # Enable logging
 logging.basicConfig(
@@ -223,8 +224,9 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     update_queue = queue.Queue()
-    updater = Updater(BOT_TOKEN, update_queue=update_queue)
-    dp = updater.bot.dispatcher # Corrected this line
+    bot = Bot(BOT_TOKEN)
+    updater = Updater(bot=bot, update_queue=update_queue) # Correct way to initialize updater
+    dp = updater.dispatcher # Corrected this line
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("list", list_handler))
