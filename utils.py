@@ -1,5 +1,5 @@
 import requests
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot import types
 from config import TMDB_API_KEY
 
 def search_movie_tmdb(query):
@@ -27,28 +27,26 @@ def fetch_movie_details_tmdb(movie_id):
 
 def create_post_menu_keyboard():
     """Creates inline keyboard for post creation options."""
-    keyboard = [
-      [InlineKeyboardButton("TMDb ID", callback_data='tmdb_id')],
-      [InlineKeyboardButton("Poster Link", callback_data='poster_link')],
-      [InlineKeyboardButton("Add Download Link", callback_data='add_download_link')],
-      [InlineKeyboardButton("Done", callback_data='done')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton("TMDb ID", callback_data='tmdb_id'))
+    keyboard.add(types.InlineKeyboardButton("Poster Link", callback_data='poster_link'))
+    keyboard.add(types.InlineKeyboardButton("Add Download Link", callback_data='add_download_link'))
+    keyboard.add(types.InlineKeyboardButton("Done", callback_data='done'))
+    return keyboard
 
 
 def create_download_link_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("Add Another Download Link", callback_data='add_download_link')],
-        [InlineKeyboardButton("Done", callback_data='download_done')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton("Add Another Download Link", callback_data='add_download_link'))
+    keyboard.add(types.InlineKeyboardButton("Done", callback_data='download_done'))
+    return keyboard
 
 def create_post_list_keyboard(posts):
-    keyboard = []
+    keyboard = types.InlineKeyboardMarkup()
     for post_id, post_data in posts.items():
-        keyboard.append([InlineKeyboardButton(post_data['title'], callback_data=f'edit_post_{post_id}')])
-    
-    return InlineKeyboardMarkup(keyboard)
+        keyboard.add(types.InlineKeyboardButton(post_data['title'], callback_data=f'edit_post_{post_id}'))
+    return keyboard
+
 
 def format_download_links(download_links):
     """Formats download links into HTML structure."""
