@@ -1,6 +1,7 @@
 import requests
 from telebot import types
 from config import TMDB_API_KEY
+import re
 
 def search_movie_tmdb(query):
     """Searches for a movie on TMDb based on the query and returns search results."""
@@ -61,29 +62,28 @@ def format_download_links(download_links):
         """
     return formatted_links
 
-
 def update_post_template(template, movie_details, poster_url, download_links):
     """Updates the HTML template with movie details, poster URL, and download links."""
     formatted_download_links = format_download_links(download_links)
     
-    movie_title = movie_details.get('title', 'Unknown Title')
-    release_date = movie_details.get('release_date', 'Unknown')
-    rating = movie_details.get('vote_average', 'Unknown')
+    # Create a dictionary of replacements
+    replacements = {
+        '{movie_title}': movie_details.get('title', 'Unknown Title'),
+        '{release_date}': movie_details.get('release_date', 'Unknown'),
+        '{rating}': str(movie_details.get('vote_average', 'Unknown')),
+        '{genre}': ', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
+        '{runtime}': f"{movie_details.get('runtime', 'Unknown')} minutes" if movie_details.get('runtime') else 'Unknown',
+        '{synopsis}': movie_details.get('overview', 'No Synopsis Available'),
+        '{poster_url}': poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster",
+        '{download_links}': formatted_download_links
+    }
+
+    # Perform the replacements
+    for key, value in replacements.items():
+      template = template.replace(key, str(value))
+
+
+    # Remove any remaining template placeholders that might exist in the template.
+    template = re.sub(r'{[a-zA-Z_]+}', '', template)
     
-    genres = movie_details.get('genres', [])
-    genre_names = ', '.join([genre['name'] for genre in genres]) if genres else 'Unknown'
-    
-    runtime = f"{movie_details.get('runtime', 'Unknown')} minutes" if movie_details.get('runtime') else 'Unknown'
-    synopsis = movie_details.get('overview', 'No Synopsis Available')
-    
-    updated_template = template.format(
-        movie_title=movie_title,
-        release_date=release_date,
-        rating=rating,
-        genre=genre_names,
-        runtime=runtime,
-        synopsis=synopsis,
-        poster_url=poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster",
-        download_links=formatted_download_links
-    )
-    return updated_template
+    return template
