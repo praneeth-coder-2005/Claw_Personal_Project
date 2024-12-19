@@ -5,9 +5,9 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    Filters,
     CallbackContext,
 )
+from telegram.ext import filters as Filters
 from config import BOT_TOKEN
 from post_template import POST_TEMPLATE
 from utils import (
