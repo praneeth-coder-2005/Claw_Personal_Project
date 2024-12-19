@@ -27,7 +27,7 @@ def _make_tmdb_api_request(url):
         return None
 
 def get_movie_details(movie_id):
-    """Fetches movie details from TMDb API using the movie ID."""
+    """Fetches movie details from TMDb API using the movie ID and also returns the image URL."""
     details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     details_data = _make_tmdb_api_request(details_url)
 
@@ -39,7 +39,8 @@ def get_movie_details(movie_id):
             overview = details_data.get('overview', 'N/A')
             genres = ", ".join([genre['name'] for genre in details_data.get('genres', [])]) or "N/A"
             poster_path = details_data.get('poster_path')
-            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "N/A"
+            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None #Poster url can also be none
+
             vote_average = details_data.get('vote_average', 'N/A')
             vote_count = details_data.get('vote_count', 'N/A')
             runtime = details_data.get('runtime', 'N/A')
@@ -59,16 +60,14 @@ def get_movie_details(movie_id):
             **Revenue:** ${revenue:,}
             **Vote Average:** {vote_average} ({vote_count} votes)
 
-            [Poster]({poster_url})
             **TMDb ID:** [{movie_id}](https://www.themoviedb.org/movie/{movie_id}) ( {movie_id} )
             """
-            return movie_info
+            return movie_info, poster_url
         except Exception as e:
             logger.error(f"Error formatting movie details: {e}")
-            return "Error formatting movie details."
+            return "Error formatting movie details.", None
     else:
-        return "Error fetching movie details."
-
+        return "Error fetching movie details.", None
 
 def search_movies(movie_name):
     """Searches for movies with similar names using TMDb API."""
@@ -121,12 +120,16 @@ def callback_query(call):
         else:  # Handle movie selection callbacks
             bot.answer_callback_query(call.id)
             movie_id = call.data  # Use the TMDb ID
-            movie_info = get_movie_details(movie_id)
-            bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+            movie_info, poster_url = get_movie_details(movie_id)
+
+            if poster_url:
+                bot.send_photo(call.message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+            else:
+                bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+
     except Exception as e:
         logger.error(f"Error in callback_query: {e}")
         bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
-
 
 # --- Message Handlers ---
 def process_movie_request(message):
@@ -141,8 +144,12 @@ def process_movie_request(message):
 
         if len(movies) == 1:
             movie_id = movies[0]['id']  # Use 'id' from TMDb results
-            movie_info = get_movie_details(movie_id)
-            bot.send_message(message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+            movie_info, poster_url = get_movie_details(movie_id)
+            if poster_url:
+               bot.send_photo(message.chat.id, photo=poster_url, caption=movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+            else:
+                bot.send_message(message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+
         elif len(movies) > 1:
             markup = telebot.types.InlineKeyboardMarkup()
             for movie in movies:
