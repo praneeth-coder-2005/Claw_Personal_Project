@@ -6,10 +6,10 @@ def search_movie_tmdb(query):
     """Searches for a movie on TMDb based on the query and returns search results."""
     url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
     try:
-      response = requests.get(url)
-      response.raise_for_status()  # Raise an exception for bad status codes
-      data = response.json()
-      return data.get('results', [])
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        data = response.json()
+        return data.get('results', [])
     except requests.exceptions.RequestException as e:
         print(f"Error during TMDb API call: {e}")
         return []
@@ -18,12 +18,13 @@ def fetch_movie_details_tmdb(movie_id):
     """Fetches a movie's details on TMDb based on the movie ID."""
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
     try:
-      response = requests.get(url)
-      response.raise_for_status()
-      return response.json()
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.RequestException as e:
-      print(f"Error during TMDb API call for movie details: {e}")
-      return None
+        print(f"Error during TMDb API call for movie details: {e}")
+        return None
+
 
 def create_post_menu_keyboard():
     """Creates inline keyboard for post creation options."""
@@ -52,12 +53,12 @@ def format_download_links(download_links):
     """Formats download links into HTML structure."""
     formatted_links = ""
     for title, url in download_links.items():
-      formatted_links += f"""
+        formatted_links += f"""
 <div class="link-item">
     <span>{title}</span>
     <a href="{url}" class="tg-button">TG File</a>
 </div>
-      """
+        """
     return formatted_links
 
 def update_post_template(template, movie_details, poster_url, download_links):
@@ -66,8 +67,8 @@ def update_post_template(template, movie_details, poster_url, download_links):
     updated_template = template.format(
         movie_title=movie_details.get('title', 'Unknown Title'),
         release_date=movie_details.get('release_date', 'Unknown'),
-        rating=movie_details.get('vote_average', 'Unknown'),
-        genre=', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
+        rating=movie_details.get('vote_average', 'Unknown') if movie_details.get('vote_average') is not None else 'Unknown',
+         genre=', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
         runtime=f"{movie_details.get('runtime', 'Unknown')} minutes" if movie_details.get('runtime') else 'Unknown',
         synopsis=movie_details.get('overview', 'No Synopsis Available'),
         poster_url=poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster",
