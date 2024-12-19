@@ -45,8 +45,8 @@ def create_download_link_keyboard():
 
 def create_post_list_keyboard(posts):
     keyboard = []
-    for post_id, post_title in posts.items():
-        keyboard.append([InlineKeyboardButton(post_title, callback_data=f'edit_post_{post_id}')])
+    for post_id, post_data in posts.items():
+        keyboard.append([InlineKeyboardButton(post_data['title'], callback_data=f'edit_post_{post_id}')])
     
     return InlineKeyboardMarkup(keyboard)
 
