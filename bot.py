@@ -38,6 +38,7 @@ def start(update: Update, context: CallbackContext) -> None:
     """Sends the welcome message and options."""
     keyboard = [
         [InlineKeyboardButton("Create Post", callback_data="create_post")],
+        [InlineKeyboardButton("List Posts", callback_data="list_posts")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text("Welcome! What would you like to do?", reply_markup=reply_markup)
@@ -192,10 +193,12 @@ def process_post_title(update: Update, context: CallbackContext) -> None:
     
 def list_handler(update: Update, context: CallbackContext) -> None:
   """List saved post title."""
+  query = update.callback_query
+  query.answer()
   if posts:
-    update.message.reply_text("Here is list of post, Which post you want to edit?", reply_markup=create_post_list_keyboard(posts))
+    query.edit_message_text("Here is list of post, Which post you want to edit?", reply_markup=create_post_list_keyboard(posts))
   else:
-    update.message.reply_text("No posts available right now. Please create a post first.")
+    query.edit_message_text("No posts available right now. Please create a post first.")
 
 def edit_post_handler(update: Update, context: CallbackContext) -> None:
   """Edit saved posts."""
@@ -208,9 +211,9 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
     context.user_data['edit_post_id'] = post_id
     
     #Re-initialize the context data to edit the post again.
-    temp_post_data['movie_details'] = None
-    temp_post_data['poster_url'] = None
-    temp_post_data['download_links'] = {}
+    context.user_data['movie_details'] = None
+    context.user_data['poster_url'] = None
+    context.user_data['download_links'] = {}
     
     query.edit_message_text(
       text=f"Edit the post: {post_data['title']}. What details you need to update?",
@@ -226,7 +229,6 @@ def main() -> None:
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("list", list_handler))
     
     dp.add_handler(CallbackQueryHandler(create_post_handler, pattern='create_post'))
     dp.add_handler(CallbackQueryHandler(tmdb_id_handler, pattern='tmdb_id'))
@@ -235,6 +237,7 @@ def main() -> None:
     dp.add_handler(CallbackQueryHandler(process_tmdb_selection, pattern='tmdb_select_'))
     dp.add_handler(CallbackQueryHandler(download_done, pattern='download_done'))
     dp.add_handler(CallbackQueryHandler(done_handler, pattern='done'))
+    dp.add_handler(CallbackQueryHandler(list_handler, pattern='list_posts'))
     dp.add_handler(CallbackQueryHandler(edit_post_handler, pattern='edit_post_'))
     
     #Handle normal text messages
