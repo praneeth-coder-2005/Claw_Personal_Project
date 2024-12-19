@@ -213,24 +213,27 @@ def process_post_title(message):
     poster_url = temp_post_data[message.chat.id].get('poster_url', None)
     download_links = temp_post_data[message.chat.id].get('download_links', {})
 
-    updated_template = update_post_template(
-        POST_TEMPLATE, movie_details, poster_url, download_links
-    )
+    if movie_details:
+      updated_template = update_post_template(
+          POST_TEMPLATE, movie_details, poster_url, download_links
+      )
 
-    # Store post data for edit
-    post_id = len(posts) + 1
-    posts[post_id] = {
-      'title': post_title,
-      'code': updated_template
-    }
-    
-    temp_post_data.pop(message.chat.id, None)
-    set_state(message.chat.id, None)
+      # Store post data for edit
+      post_id = len(posts) + 1
+      posts[post_id] = {
+        'title': post_title,
+        'code': updated_template
+      }
+      
+      temp_post_data.pop(message.chat.id, None)
+      set_state(message.chat.id, None)
 
-    bot.send_message(message.chat.id, f"Your post '{post_title}' is created!\n\n"
-                     "```html\n"
-                     f"{updated_template}\n"
-                     "```", parse_mode='MarkdownV2')
+      bot.send_message(message.chat.id, f"Your post '{post_title}' is created!\n\n"
+                      "```html\n"
+                      f"{updated_template}\n"
+                      "```", parse_mode='MarkdownV2')
+    else:
+        bot.send_message(message.chat.id, "Movie details not found. Please select a movie using TMDb ID first.")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'list_posts')
