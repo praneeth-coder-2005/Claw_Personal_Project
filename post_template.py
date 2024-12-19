@@ -357,7 +357,7 @@ POST_TEMPLATE = """
 
   // Fetch Movie Details from TMDb API
   async function fetchMovieDetails(movieId) {{
-    const url = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbApiKey}&language=en-US`;
+    const url = `https://api.themoviedb.org/3/movie/${{movieId}}?api_key=${{tmdbApiKey}}&language=en-US`;
 
     try {{
       const response = await fetch(url);
@@ -373,7 +373,7 @@ POST_TEMPLATE = """
         document.getElementById('movie-synopsis').innerText = data.overview || 'No Synopsis Available';
 
         // Update movie poster dynamically (poster fetched from TMDb)
-        const posterUrl = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+        const posterUrl = `https://image.tmdb.org/t/p/w500${{data.poster_path}}`;
         document.getElementById('movie-poster').src = posterUrl;
 
         // Update Blogger thumbnail helper image (hidden) with manually set thumbnail image
