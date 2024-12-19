@@ -25,7 +25,7 @@ def _make_tmdb_api_request(url):
     """Makes a request to the TMDb API and handles errors."""
     try:
         response = requests.get(url)
-        response.raise_for_status()
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
         data = response.json()
         return data
     except requests.exceptions.RequestException as e:
@@ -33,43 +33,50 @@ def _make_tmdb_api_request(url):
         return None
 
 
-def get_movie_details(movie_name):
-    """Fetches movie details from TMDb API."""
-    # 1. Search for the movie to get the TMDb ID
-    search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
-    search_data = _make_tmdb_api_request(search_url)
+def get_movie_details(movie_id):
+    """Fetches movie details from TMDb API using the movie ID."""
 
-    if search_data and search_data['results']:
-        movie_id = search_data['results'][0]['id']
+    details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    details_data = _make_tmdb_api_request(details_url)
 
-        # 2. Get movie details using the TMDb ID
-        details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-        details_data = _make_tmdb_api_request(details_url)
-
-        if details_data:
-            # Extract and format movie details (use Markdown for better readability)
-            title = details_data['title']
-            year = details_data['release_date'][:4]  # Extract year from release date
-            overview = details_data['overview']
-            genres = ", ".join([genre['name'] for genre in details_data['genres']])
-            poster_path = details_data['poster_path']
+    if details_data:
+        try:
+            title = details_data.get('title', 'N/A')
+            release_date = details_data.get('release_date', 'N/A')
+            year = release_date[:4] if release_date != 'N/A' else 'N/A'
+            overview = details_data.get('overview', 'N/A')
+            genres = ", ".join([genre['name'] for genre in details_data.get('genres', [])]) or "N/A"
+            poster_path = details_data.get('poster_path')
             poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "N/A"
-            vote_average = details_data['vote_average']
-            vote_count = details_data['vote_count']
+            vote_average = details_data.get('vote_average', 'N/A')
+            vote_count = details_data.get('vote_count', 'N/A')
+            runtime = details_data.get('runtime', 'N/A')
+            tagline = details_data.get('tagline', 'N/A')
+            budget = details_data.get('budget', 'N/A')
+            revenue = details_data.get('revenue', 'N/A')
 
             movie_info = f"""
-            *Title:* {title} ({year})
-            *Overview:* {overview}
-            *Genres:* {genres}
-            *Poster:* {poster_url}
-            *Vote Average:* {vote_average} ({vote_count} votes)
-            *TMDb ID:* {movie_id}
+            🎬 *{title}* ({year})
+
+            **Tagline:** {tagline}
+            **Overview:** {overview}
+            **Genres:** {genres}
+            **Release Date:** {release_date}
+            **Runtime:** {runtime} minutes
+            **Budget:** ${budget:,}
+            **Revenue:** ${revenue:,}
+            **Vote Average:** {vote_average} ({vote_count} votes)
+
+            [Poster]({poster_url})
+            [TMDb ID]({details_url})
             """
+
             return movie_info
-        else:
-            return "Error fetching movie details."
+        except Exception as e:
+            logger.error(f"Error formatting movie details: {e}")
+            return "Error formatting movie details."
     else:
-        return "Movie not found."
+        return "Error fetching movie details."
 
 
 def search_movies(movie_name):
@@ -77,16 +84,14 @@ def search_movies(movie_name):
     search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
     search_data = _make_tmdb_api_request(search_url)
 
-    if search_data and search_data['results']:
+    if search_data and search_data.get('results'):
         return search_data['results']
     else:
         return []
 
-
 def get_current_time():
     """Returns the current time as a formatted string."""
     return datetime.datetime.now().strftime("%H:%M:%S")
-
 
 def get_current_date():
     """Returns the current date as a formatted string."""
@@ -128,14 +133,13 @@ def callback_query(call):
             bot.register_next_step_handler(call.message, process_movie_request)
         else:  # Handle movie selection callbacks
             bot.answer_callback_query(call.id)
-            movie_name = call.data
-            movie_info = get_movie_details(movie_name)
-            bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown')
+            movie_id = call.data  # Use the TMDb ID
+            movie_info = get_movie_details(movie_id)
+            bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
 
     except Exception as e:
         logger.error(f"Error in callback_query: {e}")
         bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
-
 
 # --- Message Handlers ---
 
@@ -145,22 +149,23 @@ def process_movie_request(message):
         movie_name = message.text
         movies = search_movies(movie_name)
 
-        if movies is None:
-            bot.send_message(message.chat.id, "Movie search failed. Please try again later.")
+        if not movies:
+            bot.send_message(message.chat.id, "Movie not found. Please try a different title.")
             return
 
         if len(movies) == 1:
-            movie_info = get_movie_details(movies[0]['title'])  # Use 'title' from TMDb results
-            bot.send_message(message.chat.id, movie_info, parse_mode='Markdown')
+            movie_id = movies[0]['id']  # Use 'id' from TMDb results
+            movie_info = get_movie_details(movie_id)
+            bot.send_message(message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
+
         elif len(movies) > 1:
             markup = telebot.types.InlineKeyboardMarkup()
             for movie in movies:
-                title = movie['title']  # Use 'title' from TMDb results
-                year = movie['release_date'][:4]  # Extract year from release date
-                markup.add(telebot.types.InlineKeyboardButton(f"{title} ({year})", callback_data=title))
+                title = movie['title']
+                year = movie['release_date'][:4] if movie.get('release_date') else 'N/A'
+                movie_id = movie['id']
+                markup.add(telebot.types.InlineKeyboardButton(f"{title} ({year})", callback_data=str(movie_id)))
             bot.send_message(message.chat.id, "Select the correct movie:", reply_markup=markup)
-        else:
-            bot.send_message(message.chat.id, "Movie not found.")
 
     except Exception as e:
         logger.error(f"Error in process_movie_request: {e}")
@@ -171,4 +176,3 @@ def process_movie_request(message):
 
 if __name__ == '__main__':
     bot.infinity_polling()
-        
