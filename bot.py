@@ -39,7 +39,7 @@ def get_movie_details(movie_id):
             overview = details_data.get('overview', 'N/A')
             genres = ", ".join([genre['name'] for genre in details_data.get('genres', [])]) or "N/A"
             poster_path = details_data.get('poster_path')
-            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None #Poster url can also be none
+            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None
 
             vote_average = details_data.get('vote_average', 'N/A')
             vote_count = details_data.get('vote_count', 'N/A')
@@ -59,6 +59,8 @@ def get_movie_details(movie_id):
             **Budget:** ${budget:,}
             **Revenue:** ${revenue:,}
             **Vote Average:** {vote_average} ({vote_count} votes)
+            
+            **Poster:** {poster_url if poster_url else "N/A"}
 
             **TMDb ID:** [{movie_id}](https://www.themoviedb.org/movie/{movie_id}) ( {movie_id} )
             """
