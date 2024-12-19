@@ -12,6 +12,7 @@ from utils import (
     update_post_template,
     create_post_list_keyboard
 )
+import re
 
 # Enable logging
 logging.basicConfig(
@@ -228,10 +229,11 @@ def process_post_title(message):
       temp_post_data.pop(message.chat.id, None)
       set_state(message.chat.id, None)
 
+      #Removed parse_mode and send normal HTML code
       bot.send_message(message.chat.id, f"Your post '{post_title}' is created!\n\n"
                       "```html\n"
                       f"{updated_template}\n"
-                      "```", parse_mode='MarkdownV2')
+                      "```")
     else:
         bot.send_message(message.chat.id, "Movie details not found. Please select a movie using TMDb ID first.")
 
