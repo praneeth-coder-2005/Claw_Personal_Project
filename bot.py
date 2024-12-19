@@ -1,26 +1,20 @@
 import datetime
 import logging
-
 import requests
 import telebot
 
 # --- Configuration ---
-
 BOT_TOKEN = '7805737766:AAEAOEQAHNLNqrT0D7BAeAN_x8a-RDVnnlk'  # Replace with your actual bot token
 TMDB_API_KEY = "bb5f40c5be4b24660cbdc20c2409835e"  # Replace with your actual TMDb API key
 
 # --- Logging ---
-
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
 # --- Bot Initialization ---
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
-
 # --- Helper Functions ---
-
 def _make_tmdb_api_request(url):
     """Makes a request to the TMDb API and handles errors."""
     try:
@@ -32,10 +26,8 @@ def _make_tmdb_api_request(url):
         logger.error(f"Error making TMDb API request: {e}")
         return None
 
-
 def get_movie_details(movie_id):
     """Fetches movie details from TMDb API using the movie ID."""
-
     details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     details_data = _make_tmdb_api_request(details_url)
 
@@ -68,9 +60,8 @@ def get_movie_details(movie_id):
             **Vote Average:** {vote_average} ({vote_count} votes)
 
             [Poster]({poster_url})
-            [TMDb ID]({details_url})
+            **TMDb ID:** [{movie_id}](https://www.themoviedb.org/movie/{movie_id}) ( {movie_id} )
             """
-
             return movie_info
         except Exception as e:
             logger.error(f"Error formatting movie details: {e}")
@@ -97,9 +88,7 @@ def get_current_date():
     """Returns the current date as a formatted string."""
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
-
 # --- Command Handlers ---
-
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     """Sends a welcome message with inline buttons."""
@@ -116,9 +105,7 @@ def send_welcome(message):
         logger.error(f"Error in send_welcome: {e}")
         bot.reply_to(message, "Oops! Something went wrong. Please try again later.")
 
-
 # --- Callback Query Handler ---
-
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     """Handles inline button callbacks."""
@@ -136,13 +123,12 @@ def callback_query(call):
             movie_id = call.data  # Use the TMDb ID
             movie_info = get_movie_details(movie_id)
             bot.send_message(call.message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
-
     except Exception as e:
         logger.error(f"Error in callback_query: {e}")
         bot.send_message(call.message.chat.id, "Oops! Something went wrong. Please try again later.")
 
-# --- Message Handlers ---
 
+# --- Message Handlers ---
 def process_movie_request(message):
     """Processes the movie title and sends movie details or shows options."""
     try:
@@ -157,7 +143,6 @@ def process_movie_request(message):
             movie_id = movies[0]['id']  # Use 'id' from TMDb results
             movie_info = get_movie_details(movie_id)
             bot.send_message(message.chat.id, movie_info, parse_mode='Markdown', disable_web_page_preview=True)
-
         elif len(movies) > 1:
             markup = telebot.types.InlineKeyboardMarkup()
             for movie in movies:
@@ -171,8 +156,6 @@ def process_movie_request(message):
         logger.error(f"Error in process_movie_request: {e}")
         bot.send_message(message.chat.id, "Oops! Something went wrong. Please try again later.")
 
-
 # --- Start the Bot ---
-
 if __name__ == '__main__':
     bot.infinity_polling()
