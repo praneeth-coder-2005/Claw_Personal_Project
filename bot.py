@@ -19,6 +19,7 @@ from utils import (
     update_post_template,
     create_post_list_keyboard
 )
+import queue
 
 # Enable logging
 logging.basicConfig(
@@ -221,7 +222,8 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
 
 def main() -> None:
     """Start the bot."""
-    updater = Updater(BOT_TOKEN) # Removed use_context=True
+    update_queue = queue.Queue() # Added update queue
+    updater = Updater(BOT_TOKEN, update_queue=update_queue) # Removed use_context=True and added update_queue
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
