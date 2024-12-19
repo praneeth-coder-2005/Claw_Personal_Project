@@ -222,9 +222,9 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
 
 def main() -> None:
     """Start the bot."""
-    update_queue = queue.Queue() # Added update queue
-    updater = Updater(BOT_TOKEN, update_queue=update_queue) # Removed use_context=True and added update_queue
-    dp = updater.dispatcher
+    update_queue = queue.Queue()
+    updater = Updater(BOT_TOKEN, update_queue=update_queue)
+    dp = updater.dispatcher # Corrected this line
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("list", list_handler))
