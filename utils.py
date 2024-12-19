@@ -63,15 +63,14 @@ def format_download_links(download_links):
 def update_post_template(template, movie_details, poster_url, download_links):
     """Updates the HTML template with movie details, poster URL, and download links."""
     formatted_download_links = format_download_links(download_links)
-
     updated_template = template.format(
-        movie_title = movie_details.get('title', 'Unknown Title'),
-        release_date = movie_details.get('release_date', 'Unknown'),
-        rating = movie_details.get('vote_average', 'Unknown'),
-        genre = ', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
-        runtime = f"{movie_details.get('runtime', 'Unknown')} minutes",
-        synopsis = movie_details.get('overview', 'No Synopsis Available'),
-        poster_url = poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster", # Use placeholder if no poster_url
-        download_links = formatted_download_links
+        movie_title=movie_details.get('title', 'Unknown Title'),
+        release_date=movie_details.get('release_date', 'Unknown'),
+        rating=movie_details.get('vote_average', 'Unknown'),
+        genre=', '.join([genre['name'] for genre in movie_details.get('genres', [])]) if movie_details.get('genres') else 'Unknown',
+        runtime=f"{movie_details.get('runtime', 'Unknown')} minutes",
+        synopsis=movie_details.get('overview', 'No Synopsis Available'),
+        poster_url=poster_url if poster_url else "https://via.placeholder.com/500x750.png?text=Poster",
+        download_links=formatted_download_links
     )
     return updated_template
