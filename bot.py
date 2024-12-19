@@ -221,7 +221,7 @@ def edit_post_handler(update: Update, context: CallbackContext) -> None:
 
 def main() -> None:
     """Start the bot."""
-    updater = Updater(BOT_TOKEN, use_context=True)
+    updater = Updater(BOT_TOKEN) # Removed use_context=True
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
