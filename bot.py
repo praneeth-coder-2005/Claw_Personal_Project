@@ -13,6 +13,7 @@ from utils import (
     create_post_list_keyboard
 )
 import re
+import io
 
 # Enable logging
 logging.basicConfig(
@@ -228,14 +229,12 @@ def process_post_title(message):
       
       temp_post_data.pop(message.chat.id, None)
       set_state(message.chat.id, None)
-
-      # Split message if too long
-      message_parts = split_message(f"Your post '{post_title}' is created!\n\n"
-                                  "```html\n"
-                                  f"{updated_template}\n"
-                                  "```", 4000)
-      for part in message_parts:
-        bot.send_message(message.chat.id, part)
+      
+      # Create a file-like object for sending the code as a text file
+      file_like_obj = io.StringIO(updated_template)
+      
+      # Send the file as a document
+      bot.send_document(message.chat.id, document=("movie_post.txt", file_like_obj), caption=f"Your post '{post_title}' is created! check file")
 
 
     else:
@@ -282,16 +281,6 @@ def edit_post_handler(call):
           chat_id=call.message.chat.id,
           message_id=call.message.message_id
       )
-
-def split_message(message, max_length):
-    """Splits a message into parts if it exceeds max_length."""
-    parts = []
-    while len(message) > max_length:
-        parts.append(message[:max_length])
-        message = message[max_length:]
-    parts.append(message)
-    return parts
-
 
 def main():
     """Start the bot."""
